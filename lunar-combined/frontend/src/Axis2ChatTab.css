@@ -210,6 +210,35 @@
   font-size: 0.86rem;
 }
 
+.axis2-source-strip {
+  margin-top: 0.48rem;
+  display: grid;
+  gap: 0.35rem;
+}
+
+.axis2-source-label {
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #9db6ef;
+}
+
+.axis2-source-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.axis2-source-chip {
+  border: 1px solid rgba(122, 124, 255, 0.35);
+  border-radius: 999px;
+  padding: 0.18rem 0.55rem;
+  font-size: 0.72rem;
+  line-height: 1.15;
+  color: #dbe7ff;
+  background: rgba(37, 50, 92, 0.6);
+}
+
 .axis2-bubble-meta {
   display: flex;
   justify-content: space-between;

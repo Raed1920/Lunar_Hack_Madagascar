@@ -93,6 +93,25 @@ function mapHistoryToMessages(history) {
   }))
 }
 
+function formatSourceLabel(value) {
+  const text = (value || '').trim()
+  if (!text) return 'Knowledge Base'
+
+  const lowered = text.toLowerCase()
+  if (lowered.startsWith('dataset:')) {
+    const datasetName = text.split(':', 2)[1] ?? 'Knowledge Base'
+    return datasetName
+      .replace(/[_-]+/g, ' ')
+      .replace(/\b\w/g, (char) => char.toUpperCase())
+      .trim()
+  }
+
+  return text
+    .replace(/\.(txt|md|pdf|docx|csv|json)$/i, '')
+    .replace(/[_-]+/g, ' ')
+    .trim()
+}
+
 function getOrCreateUserId() {
   const key = 'ai_sales_user_id'
   const existing = window.localStorage.getItem(key)
@@ -204,6 +223,7 @@ export default function Axis2ChatTab() {
           role: 'assistant',
           text: data.response,
           createdAt: Date.now(),
+          rag_sources: Array.isArray(data.rag_sources) ? data.rag_sources : [],
         },
       ])
 
@@ -352,6 +372,18 @@ export default function Axis2ChatTab() {
                   <time>{formatTimestamp(message.createdAt)}</time>
                 </div>
                 <p>{message.text}</p>
+                {message.role === 'assistant' && message.rag_sources && message.rag_sources.length > 0 ? (
+                  <div className="axis2-source-strip">
+                    <span className="axis2-source-label">Sources</span>
+                    <div className="axis2-source-chips">
+                      {message.rag_sources.map((source) => (
+                        <span key={`${message.id}-${source}`} className="axis2-source-chip">
+                          {formatSourceLabel(source)}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
               </article>
             ))}
 
