@@ -1,0 +1,20 @@
+# Marketing Guides
+
+## Ecommerce Growth Blueprint
+1. Diagnose funnel drop-off points.
+2. Prioritize high-intent traffic acquisition.
+3. Build segmented retention automations.
+4. Iterate on product-page and checkout UX.
+5. Scale budgets only when CAC and ROAS thresholds are met.
+
+## Lead Qualification Framework
+- Business type
+- Monthly budget range
+- Top 1-2 goals
+- Decision timeline
+- Buying intent signals
+
+## Recommended Channel Mix by Goal
+- Increase immediate sales: paid social + search + retargeting
+- Improve retention: email automation + loyalty flows
+- Raise average order value: upsell journeys + bundles + post-purchase offers

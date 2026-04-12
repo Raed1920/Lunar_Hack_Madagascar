@@ -1,0 +1,16 @@
+# FAQ
+
+## How fast can campaigns launch?
+Campaigns can launch in 7-14 days after discovery and asset approval.
+
+## Do you support multilingual campaigns?
+Yes. We support English, French, and Arabic campaign workflows.
+
+## Can the team work with small budgets?
+Yes. Starter campaigns can run with USD 1,000-3,000 ad budgets, but scale potential is limited.
+
+## What KPIs are tracked?
+Core KPIs include conversion rate, CAC, ROAS, average order value, and repeat purchase rate.
+
+## Is there a minimum contract?
+The recommended minimum engagement is 3 months to gather enough optimization data.

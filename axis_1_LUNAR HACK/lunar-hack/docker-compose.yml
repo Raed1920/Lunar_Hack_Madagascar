@@ -1,0 +1,72 @@
+version: "3.8"
+
+services:
+
+  redpanda:
+    image: redpandadata/redpanda:latest
+    container_name: redpanda
+    command:
+      - redpanda start
+      - --smp 1
+      - --memory 512M
+      - --overprovisioned
+      - --kafka-addr PLAINTEXT://0.0.0.0:29092,OUTSIDE://0.0.0.0:9092
+      - --advertise-kafka-addr PLAINTEXT://redpanda:29092,OUTSIDE://localhost:9092
+      - --pandaproxy-addr 0.0.0.0:8082
+      - --advertise-pandaproxy-addr localhost:8082
+    ports:
+      - "9092:9092"       # Kafka API (accès depuis ta machine)
+      - "29092:29092"     # Kafka API (accès inter-containers)
+      - "8082:8082"       # Pandaproxy REST
+      - "9644:9644"       # Admin API
+    volumes:
+      - redpanda_data:/var/lib/redpanda/data
+    healthcheck:
+      test: ["CMD", "rpk", "cluster", "info"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redpanda-console:
+    image: redpandadata/console:latest
+    container_name: redpanda-console
+    depends_on:
+      redpanda:
+        condition: service_healthy
+    ports:
+      - "8081:8080"       # UI web → http://localhost:8080
+    environment:
+      KAFKA_BROKERS: redpanda:29092
+
+  topic-init:
+    image: redpandadata/redpanda:latest
+    depends_on:
+      redpanda:
+        condition: service_healthy
+    entrypoint: >
+      bash -c "
+        rpk topic create transactions --brokers redpanda:29092 --partitions 3 --replicas 1 &&
+        rpk topic create alerts --brokers redpanda:29092 --partitions 1 --replicas 1 &&
+        rpk topic create kpi-snapshots --brokers redpanda:29092 --partitions 1 --replicas 1 &&
+        rpk topic create customers --brokers redpanda:29092 --partitions 1 --replicas 1 &&
+        rpk topic create products --brokers redpanda:29092 --partitions 1 --replicas 1 &&
+        rpk topic create orders --brokers redpanda:29092 --partitions 3 --replicas 1 &&
+        rpk topic create order-items --brokers redpanda:29092 --partitions 3 --replicas 1 &&
+        rpk topic create website-behavior --brokers redpanda:29092 --partitions 3 --replicas 1 &&
+        rpk topic create conversations --brokers redpanda:29092 --partitions 1 --replicas 1 &&
+        rpk topic create marketing-campaigns --brokers redpanda:29092 --partitions 1 --replicas 1 &&
+        echo 'Topics created.'
+      "
+    restart: "no"
+
+  redis:
+    image: redis:7-alpine
+    container_name: redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+
+volumes:
+  redpanda_data:
+  redis_data:

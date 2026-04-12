@@ -1,0 +1,20 @@
+:root {
+  font-family: Inter, Segoe UI, Roboto, Arial, sans-serif;
+  line-height: 1.4;
+  color: #e7ebf7;
+  background: #0d111a;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: radial-gradient(circle at top, #1c243a 0%, #0d111a 50%);
+  min-height: 100vh;
+}
+
+a {
+  color: inherit;
+}

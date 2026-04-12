@@ -1,0 +1,24 @@
+# Product Catalog
+
+## Growth Launch Package
+- Best for: early-stage ecommerce brands
+- Includes: store audit, 2 paid campaigns, lifecycle email setup
+- Price: USD 2,500/month
+- Typical impact: +10% to +18% conversion uplift in 60-90 days
+
+## Conversion Booster Package
+- Best for: stores with stable traffic and weak checkout performance
+- Includes: checkout optimization, A/B testing, retargeting funnels, CRO dashboards
+- Price: USD 4,500/month
+- Typical impact: +15% to +30% conversion uplift in 90 days
+
+## Omnichannel Scale Package
+- Best for: multi-region brands with > USD 50k monthly ad spend
+- Includes: paid media strategy, analytics governance, attribution modeling, weekly optimization
+- Price: USD 8,000/month
+- Typical impact: +20% to +35% revenue increase in 120 days
+
+## Add-Ons
+- Legal compliance review: USD 900 one-time
+- Email automation expansion: USD 700/month
+- CRM integration: USD 1,200 one-time

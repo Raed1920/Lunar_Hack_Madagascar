@@ -1,0 +1,19 @@
+# Policies and Legal Notes
+
+## Refund Policy
+- Services are billed monthly in advance.
+- Cancellation requires 14-day notice before next billing cycle.
+- One-time setup fees are non-refundable once implementation starts.
+
+## Data Privacy
+- Customer data is processed under least-privilege access.
+- No customer PII is shared with third parties outside approved integrations.
+- Data retention defaults to 12 months unless client requests earlier deletion.
+
+## Compliance Scope
+- Guidance aligns with common GDPR-style and consumer-protection practices.
+- Legal guidance is informational and not a substitute for licensed legal advice.
+
+## Communication Policy
+- Standard support SLAs: first response within 1 business day.
+- Strategic reviews are delivered bi-weekly for active clients.

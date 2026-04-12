@@ -1,0 +1,328 @@
+.axis2-tab {
+  --bg-0: #050914;
+  --bg-1: #0c1226;
+  --bg-2: #121a34;
+  --surface: rgba(11, 16, 30, 0.84);
+  --line: rgba(114, 146, 255, 0.28);
+  --text: #e8efff;
+  --text-soft: #9baac8;
+  --neon: #57c8ff;
+  --neon-2: #7a7cff;
+  --radius: 14px;
+  --shadow: 0 18px 36px rgba(0, 0, 0, 0.35);
+  width: min(1200px, 96vw);
+  margin: 1rem auto;
+  padding: 0.9rem;
+  color: var(--text);
+  border-radius: var(--radius);
+  background:
+    radial-gradient(circle at 12% 10%, rgba(87, 200, 255, 0.2), transparent 34%),
+    radial-gradient(circle at 84% 12%, rgba(122, 124, 255, 0.24), transparent 30%),
+    linear-gradient(160deg, var(--bg-0) 0%, var(--bg-1) 44%, var(--bg-2) 100%);
+}
+
+.axis2-topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.8rem;
+  border: 1px solid var(--line);
+  background: linear-gradient(130deg, rgba(11, 16, 30, 0.9), rgba(18, 24, 42, 0.9));
+  border-radius: var(--radius);
+  padding: 0.9rem 1rem;
+  box-shadow: var(--shadow);
+  margin-bottom: 0.8rem;
+}
+
+.axis2-title-wrap h1 {
+  margin: 0.2rem 0 0;
+  font-size: 1.2rem;
+}
+
+.axis2-title-wrap p {
+  margin: 0.3rem 0 0;
+  color: var(--text-soft);
+  font-size: 0.86rem;
+}
+
+.axis2-eyebrow {
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--neon);
+  font-weight: 700;
+}
+
+.axis2-lang-picker {
+  display: grid;
+  gap: 0.28rem;
+  min-width: 150px;
+}
+
+.axis2-lang-picker span {
+  font-size: 0.68rem;
+  color: var(--text-soft);
+}
+
+.axis2-lang-picker select {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  min-height: 38px;
+  padding: 0 0.6rem;
+  color: var(--text);
+  background: rgba(14, 20, 36, 0.95);
+}
+
+.axis2-layout {
+  display: grid;
+  grid-template-columns: 280px minmax(0, 1fr);
+  gap: 0.8rem;
+  min-height: 70vh;
+}
+
+.axis2-history-shell,
+.axis2-chat-shell {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+
+.axis2-history-shell {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.axis2-history-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.65rem 0.75rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.axis2-history-head h2 {
+  margin: 0;
+  font-size: 0.72rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-soft);
+}
+
+.axis2-ghost-btn {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  min-height: 32px;
+  background: rgba(15, 21, 38, 0.92);
+  color: var(--text);
+  font-size: 0.74rem;
+  padding: 0 0.6rem;
+  cursor: pointer;
+}
+
+.axis2-history-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0.6rem;
+  display: grid;
+  align-content: start;
+  gap: 0.45rem;
+}
+
+.axis2-history-empty {
+  margin: 0;
+  border: 1px dashed rgba(114, 146, 255, 0.25);
+  border-radius: 10px;
+  color: var(--text-soft);
+  font-size: 0.8rem;
+  text-align: center;
+  padding: 0.75rem;
+}
+
+.axis2-history-item {
+  border: 1px solid rgba(114, 146, 255, 0.2);
+  border-radius: 10px;
+  background: rgba(17, 24, 43, 0.88);
+  color: var(--text);
+  text-align: left;
+  padding: 0.55rem;
+  cursor: pointer;
+}
+
+.axis2-history-item.active {
+  border-color: rgba(87, 200, 255, 0.72);
+  box-shadow: 0 0 0 1px rgba(87, 200, 255, 0.24);
+}
+
+.axis2-history-item-top {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.25rem;
+}
+
+.axis2-history-item p {
+  margin: 0;
+  font-size: 0.8rem;
+  color: #c9d6f5;
+}
+
+.axis2-chat-shell {
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.axis2-message-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 0.8rem;
+  display: grid;
+  align-content: start;
+  gap: 0.65rem;
+}
+
+.axis2-bubble {
+  border: 1px solid rgba(114, 146, 255, 0.2);
+  border-radius: 11px;
+  padding: 0.6rem 0.7rem;
+  max-width: min(84%, 760px);
+  animation: axis2FadeIn 160ms ease-out;
+}
+
+.axis2-bubble.assistant {
+  background: rgba(20, 29, 52, 0.95);
+  justify-self: start;
+}
+
+.axis2-bubble.user {
+  background: rgba(56, 74, 130, 0.86);
+  justify-self: end;
+  border-color: rgba(122, 124, 255, 0.4);
+}
+
+.axis2-bubble p {
+  margin: 0;
+  line-height: 1.45;
+  font-size: 0.86rem;
+}
+
+.axis2-bubble-meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.6rem;
+  margin-bottom: 0.2rem;
+  font-size: 0.72rem;
+  color: var(--text-soft);
+}
+
+.axis2-bubble-role {
+  font-weight: 600;
+}
+
+.axis2-loading-state {
+  width: fit-content;
+  border: 1px solid rgba(87, 200, 255, 0.36);
+  border-radius: 11px;
+  background: rgba(16, 26, 46, 0.92);
+  padding: 0.5rem 0.7rem;
+  display: grid;
+  gap: 0.35rem;
+}
+
+.axis2-loading-state p {
+  margin: 0;
+  font-size: 0.8rem;
+  color: #c0cff0;
+}
+
+.axis2-typing-dots {
+  display: flex;
+  gap: 0.25rem;
+}
+
+.axis2-typing-dots span {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: linear-gradient(120deg, var(--neon), var(--neon-2));
+  animation: axis2Pulse 1s ease-in-out infinite;
+}
+
+.axis2-composer {
+  border-top: 1px solid var(--line);
+  padding: 0.7rem;
+  background: rgba(10, 16, 31, 0.8);
+}
+
+.axis2-composer-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.55rem;
+}
+
+.axis2-composer textarea {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: rgba(17, 24, 43, 0.95);
+  color: var(--text);
+  font: inherit;
+  resize: vertical;
+  min-height: 46px;
+  padding: 0.6rem;
+}
+
+.axis2-composer button {
+  border: 0;
+  border-radius: 10px;
+  min-width: 90px;
+  background: linear-gradient(120deg, var(--neon), var(--neon-2));
+  color: #09111f;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 0 0.8rem;
+}
+
+.axis2-composer button:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+.axis2-composer small {
+  display: block;
+  margin-top: 0.4rem;
+  color: var(--text-soft);
+  font-size: 0.72rem;
+}
+
+@keyframes axis2Pulse {
+  0%, 100% { opacity: 0.55; transform: translateY(0); }
+  50% { opacity: 1; transform: translateY(-2px); }
+}
+
+@keyframes axis2FadeIn {
+  from { opacity: 0; transform: translateY(3px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@media (max-width: 980px) {
+  .axis2-layout {
+    grid-template-columns: 1fr;
+    min-height: 60vh;
+  }
+}
+
+@media (max-width: 720px) {
+  .axis2-topbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .axis2-bubble {
+    max-width: 100%;
+  }
+}
