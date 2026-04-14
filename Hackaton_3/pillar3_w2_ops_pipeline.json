@@ -1,0 +1,411 @@
+{
+  "name": "Pillar3 - Workflow 2 - Campaign Ops Pipeline (Agnostic v2)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "pillar3/campaign-ops",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "w2n1",
+      "name": "W2 Webhook Ingress",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -1460,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const req = $json;\nconst body = req.body || req || {};\nconst errors = [];\nconst required = ['campaign_id', 'workspace_id', 'solutions'];\nfor (const key of required) {\n  if (body[key] === undefined || body[key] === null || body[key] === '') {\n    errors.push('Missing required field: ' + key);\n  }\n}\nif (body.solutions !== undefined && !Array.isArray(body.solutions)) {\n  errors.push('Field solutions must be an array');\n}\nreturn [{\n  json: {\n    campaign_id: body.campaign_id || null,\n    workspace_id: body.workspace_id || null,\n    solutions: Array.isArray(body.solutions) ? body.solutions : [],\n    strategy: body.strategy || {},\n    valid_request: errors.length === 0,\n    validation_errors: errors,\n    received_at: new Date().toISOString()\n  }\n}];"
+      },
+      "id": "w2n2",
+      "name": "W2 Validate Payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1240,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{$json.valid_request}}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "w2n3",
+      "name": "W2 If Valid Request",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        -1020,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "database",
+        "operation": "executeQuery",
+        "query": "={{\"SELECT workspace_id, banned_phrases, max_budget, updated_at FROM brand_memory WHERE workspace_id = '\" + String($node['W2 Validate Payload'].json.workspace_id || '').replace(/'/g, \"''\") + \"' LIMIT 1;\"}}",
+        "options": {
+          "queryBatching": "single",
+          "replaceEmptyStrings": false
+        }
+      },
+      "id": "w2n4",
+      "name": "W2 Load Workspace Memory",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -800,
+        100
+      ],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const payload = $node['W2 Validate Payload'].json;\nconst memoryRow = $json || {};\nconst parseJsonLike = (v, fallback) => {\n  if (v === null || v === undefined) return fallback;\n  if (typeof v === 'string') {\n    try { return JSON.parse(v); } catch (e) { return fallback; }\n  }\n  return v;\n};\nconst banned = parseJsonLike(memoryRow.banned_phrases, []);\nconst bannedPhrases = Array.isArray(banned) ? banned.map(x => String(x).trim().toLowerCase()).filter(Boolean) : [];\nconst flagged = [];\nfor (const sol of payload.solutions || []) {\n  const hay = [sol.reasoning, sol.copy, sol.caption, sol.text].filter(Boolean).join('\\n').toLowerCase();\n  for (const term of bannedPhrases) {\n    if (term && hay.includes(term)) {\n      flagged.push({\n        solution_id: sol.id || null,\n        issue: 'Contains banned phrase: \"' + term + '\"',\n        severity: 'high'\n      });\n    }\n  }\n}\nreturn [{\n  json: {\n    ...payload,\n    all_pass: flagged.length === 0,\n    flagged_issues: flagged,\n    max_budget: memoryRow.max_budget === null || memoryRow.max_budget === undefined ? null : Number(memoryRow.max_budget)\n  }\n}];"
+      },
+      "id": "w2n5",
+      "name": "W2 Brand Safety Check",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -580,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{$json.all_pass}}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "w2n6",
+      "name": "W2 If Safety Passed",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        -360,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const input = $json;\nconst issues = [];\nconst toNum = (v) => {\n  const n = Number(v);\n  return Number.isFinite(n) ? n : 0;\n};\nlet total = 0;\nfor (const sol of input.solutions || []) {\n  const amount = toNum(sol.budget_estimate ?? sol.budget ?? sol.estimated_cost ?? 0);\n  total += amount;\n  if (input.max_budget !== null && input.max_budget !== undefined && amount > Number(input.max_budget)) {\n    issues.push({\n      solution_id: sol.id || null,\n      issue: 'Solution budget exceeds max_budget',\n      amount,\n      max_budget: Number(input.max_budget),\n      severity: 'high'\n    });\n  }\n}\nif (input.max_budget !== null && input.max_budget !== undefined && total > Number(input.max_budget)) {\n  issues.push({\n    solution_id: null,\n    issue: 'Total budget exceeds max_budget',\n    amount: total,\n    max_budget: Number(input.max_budget),\n    severity: 'high'\n  });\n}\nconst rejection_issues = [...(input.flagged_issues || []), ...issues];\nreturn [{ json: { ...input, budget_ok: issues.length === 0, total_budget: total, rejection_issues } }];"
+      },
+      "id": "w2n7",
+      "name": "W2 Budget Verify",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -140,
+        220
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{$json.budget_ok}}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "w2n8",
+      "name": "W2 If Budget OK",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        80,
+        220
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "database",
+        "operation": "executeQuery",
+        "query": "={{\"INSERT INTO campaigns (id, workspace_id, status, strategy_json, review_notes_json, updated_at) VALUES ('\" + String($json.campaign_id || '').replace(/'/g, \"''\") + \"', '\" + String($json.workspace_id || '').replace(/'/g, \"''\") + \"', 'approved', '\" + JSON.stringify($json.strategy || {}).replace(/'/g, \"''\") + \"'::jsonb, '[]'::jsonb, NOW()) ON CONFLICT (id) DO UPDATE SET status = 'approved', strategy_json = EXCLUDED.strategy_json, review_notes_json = '[]'::jsonb, updated_at = NOW() RETURNING id AS campaign_id, workspace_id, status;\"}}",
+        "options": {
+          "queryBatching": "single",
+          "replaceEmptyStrings": false
+        }
+      },
+      "id": "w2n9",
+      "name": "W2 Update Campaign Approved",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        320,
+        180
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://httpbin.org/post",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { campaign_id: $json.campaign_id, workspace_id: $json.workspace_id, solutions_count: ($node['W2 Budget Verify'].json.solutions || []).length, status: 'approved', ts: new Date().toISOString() } }}",
+        "options": {
+          "timeout": 15000
+        }
+      },
+      "id": "w2n10",
+      "name": "W2 Notify External Service",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        560,
+        180
+      ],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseCode": 200,
+        "responseBody": "={{ { campaign_id: $node['W2 Update Campaign Approved'].json.campaign_id, workspace_id: $node['W2 Update Campaign Approved'].json.workspace_id, status: 'approved', message: 'Campaign passed safety and budget checks' } }}",
+        "options": {}
+      },
+      "id": "w2n11",
+      "name": "W2 Respond Approved",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        800,
+        180
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "database",
+        "operation": "executeQuery",
+        "query": "={{\"INSERT INTO campaigns (id, workspace_id, status, strategy_json, review_notes_json, updated_at) VALUES ('\" + String($json.campaign_id || '').replace(/'/g, \"''\") + \"', '\" + String($json.workspace_id || '').replace(/'/g, \"''\") + \"', 'rejected', '\" + JSON.stringify($json.strategy || {}).replace(/'/g, \"''\") + \"'::jsonb, '\" + JSON.stringify($json.rejection_issues || $json.flagged_issues || []).replace(/'/g, \"''\") + \"'::jsonb, NOW()) ON CONFLICT (id) DO UPDATE SET status = 'rejected', strategy_json = EXCLUDED.strategy_json, review_notes_json = EXCLUDED.review_notes_json, updated_at = NOW() RETURNING id AS campaign_id, workspace_id, status, review_notes_json;\"}}",
+        "options": {
+          "queryBatching": "single",
+          "replaceEmptyStrings": false
+        }
+      },
+      "id": "w2n12",
+      "name": "W2 Update Campaign Rejected",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        320,
+        20
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseCode": 422,
+        "responseBody": "={{ { campaign_id: $json.campaign_id, workspace_id: $json.workspace_id, status: 'rejected', issues: ($json.review_notes_json || []) } }}",
+        "options": {}
+      },
+      "id": "w2n13",
+      "name": "W2 Respond Rejected",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        560,
+        20
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseCode": 400,
+        "responseBody": "={{ { status: 'invalid_request', errors: $node['W2 Validate Payload'].json.validation_errors } }}",
+        "options": {}
+      },
+      "id": "w2n14",
+      "name": "W2 Respond Invalid Request",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        -780,
+        340
+      ]
+    }
+  ],
+  "connections": {
+    "W2 Webhook Ingress": {
+      "main": [
+        [
+          {
+            "node": "W2 Validate Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "W2 Validate Payload": {
+      "main": [
+        [
+          {
+            "node": "W2 If Valid Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "W2 If Valid Request": {
+      "main": [
+        [
+          {
+            "node": "W2 Load Workspace Memory",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "W2 Respond Invalid Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "W2 Load Workspace Memory": {
+      "main": [
+        [
+          {
+            "node": "W2 Brand Safety Check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "W2 Brand Safety Check": {
+      "main": [
+        [
+          {
+            "node": "W2 If Safety Passed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "W2 If Safety Passed": {
+      "main": [
+        [
+          {
+            "node": "W2 Budget Verify",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "W2 Update Campaign Rejected",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "W2 Budget Verify": {
+      "main": [
+        [
+          {
+            "node": "W2 If Budget OK",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "W2 If Budget OK": {
+      "main": [
+        [
+          {
+            "node": "W2 Update Campaign Approved",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "W2 Update Campaign Rejected",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "W2 Update Campaign Approved": {
+      "main": [
+        [
+          {
+            "node": "W2 Notify External Service",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "W2 Notify External Service": {
+      "main": [
+        [
+          {
+            "node": "W2 Respond Approved",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "W2 Update Campaign Rejected": {
+      "main": [
+        [
+          {
+            "node": "W2 Respond Rejected",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {},
+  "active": false,
+  "meta": {
+    "templateCredsSetupCompleted": false
+  }
+}

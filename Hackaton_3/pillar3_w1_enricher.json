@@ -1,0 +1,517 @@
+{
+  "name": "Tunisia - Local Search Signals (Standalone)",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "tnw1",
+      "name": "TN Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -1980,
+        20
+      ]
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 */2 * * *"
+            }
+          ]
+        }
+      },
+      "id": "tnw2",
+      "name": "TN Schedule Every 2 Hours",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -1980,
+        220
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "pillar3/signals-enrich",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "tnw14",
+      "name": "TN Webhook Ingress",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -1980,
+        420
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const hasWebhookEnvelope = Boolean($json && (Object.prototype.hasOwnProperty.call($json, 'body') || Object.prototype.hasOwnProperty.call($json, 'headers')));\nconst req = hasWebhookEnvelope ? ($json.body || {}) : ($json || {});\nconst rawMax = Number(req.max_per_source);\nconst maxPerSource = Number.isFinite(rawMax) && rawMax > 0 ? Math.min(Math.round(rawMax), 100) : 25;\nreturn [{\n  json: {\n    run_id: $execution.id,\n    run_ts: new Date().toISOString(),\n    region: String(req.region || 'tunisia'),\n    query: String(req.query || 'Tunisia'),\n    workspace_id: req.workspace_id || null,\n    max_per_source: maxPerSource,\n    trigger_mode: hasWebhookEnvelope ? 'webhook' : 'schedule'\n  }\n}];"
+      },
+      "id": "tnw3",
+      "name": "TN Runtime Context",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1760,
+        120
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "https://www.reddit.com/search.json",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Accept",
+              "value": "application/json"
+            },
+            {
+              "name": "User-Agent",
+              "value": "n8n-tunisia-search/1.0"
+            }
+          ]
+        },
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "q",
+              "value": "={{$node['TN Runtime Context'].json.query}}"
+            },
+            {
+              "name": "sort",
+              "value": "new"
+            },
+            {
+              "name": "limit",
+              "value": "={{$node['TN Runtime Context'].json.max_per_source}}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "tnw4",
+      "name": "TN Fetch Reddit Search",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -1540,
+        -80
+      ],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "return [{ json: { source_type: 'reddit', source: 'reddit_search', payload: $json.body ?? $json, error: $json.error ?? null, fetched_at: new Date().toISOString() } }];"
+      },
+      "id": "tnw5",
+      "name": "TN Wrap Reddit Envelope",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1320,
+        -80
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{'https://news.google.com/rss/search?q=' + encodeURIComponent($node['TN Runtime Context'].json.query) + '&hl=en-US&gl=US&ceid=US:en'}}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Accept",
+              "value": "application/rss+xml, application/xml;q=0.9, text/xml;q=0.8, */*;q=0.1"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "string"
+            }
+          },
+          "timeout": 30000
+        }
+      },
+      "id": "tnw6",
+      "name": "TN Fetch Google News RSS",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -1540,
+        120
+      ],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const raw = $json.body ?? $json.data ?? $json.response ?? $json;\nconst payload = typeof raw === \"string\" ? raw : JSON.stringify(raw);\nreturn [{ json: { source_type: 'google_news_rss', source: 'google_news_rss', payload, error: $json.error ?? null, fetched_at: new Date().toISOString() } }];"
+      },
+      "id": "tnw7",
+      "name": "TN Wrap Google Envelope",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1320,
+        120
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{'https://api.gdeltproject.org/api/v2/doc/doc?query=' + encodeURIComponent($node['TN Runtime Context'].json.query) + '&mode=artlist&format=json&maxrecords=' + String($node['TN Runtime Context'].json.max_per_source)}}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "tnw8",
+      "name": "TN Fetch GDELT Search",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -1540,
+        320
+      ],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "return [{ json: { source_type: 'gdelt', source: 'gdelt_doc', payload: $json.body ?? $json, error: $json.error ?? null, fetched_at: new Date().toISOString() } }];"
+      },
+      "id": "tnw9",
+      "name": "TN Wrap GDELT Envelope",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1320,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "append"
+      },
+      "id": "tnw10",
+      "name": "TN Merge Sources A",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 2,
+      "position": [
+        -1100,
+        40
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "append"
+      },
+      "id": "tnw11",
+      "name": "TN Merge Sources B",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 2,
+      "position": [
+        -900,
+        140
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const ctx = $node['TN Runtime Context'].json || {};\nconst rows = $input.all().map(i => i.json || {});\nconst sourceErrors = [];\nconst candidateSignals = [];\nconst now = new Date();\nconst nowIso = now.toISOString();\nconst region = String(ctx.region || 'tunisia');\nconst maxPerSource = Number(ctx.max_per_source || 25);\nconst addDays = (d) => new Date(now.getTime() + d * 86400000).toISOString();\nconst slug = (v) => String(v || \"\").toLowerCase().replace(/[^a-z0-9]+/g, \"_\").replace(/^_+|_+$/g, \"\").slice(0, 120) || \"unknown\";\nconst decodeHtml = (text) => String(text || \"\")\n  .replace(/&amp;/g, \"&\")\n  .replace(/&lt;/g, \"<\")\n  .replace(/&gt;/g, \">\")\n  .replace(/&quot;/g, \"\\\"\")\n  .replace(/&#39;/g, \"'\")\n  .replace(/&#x27;/g, \"'\")\n  .replace(/&#x2F;/g, \"/\");\nconst readTag = (block, tag) => {\n  const cdata = block.match(new RegExp(\"<\" + tag + \"><!\\\\[CDATA\\\\[([\\\\s\\\\S]*?)\\\\]\\\\]><\\\\/\" + tag + \">\", \"i\"));\n  if (cdata && cdata[1]) return decodeHtml(cdata[1].trim());\n  const plain = block.match(new RegExp(\"<\" + tag + \">([\\\\s\\\\S]*?)<\\\\/\" + tag + \">\", \"i\"));\n  return plain && plain[1] ? decodeHtml(plain[1].trim()) : \"\";\n};\nfor (const row of rows) {\n  if (row.error) {\n    sourceErrors.push({ source: row.source || \"unknown\", message: row.error.message || \"source_failed\" });\n    continue;\n  }\n  if (row.source_type === \"reddit\") {\n    const posts = row.payload?.data?.children || [];\n    posts.slice(0, maxPerSource).forEach((p, idx) => {\n      const d = p?.data || {};\n      const title = String(d.title || \"\").trim();\n      if (!title) return;\n      const permalink = d.permalink ? (\"https://www.reddit.com\" + d.permalink) : null;\n      candidateSignals.push({\n        region,\n        source: \"reddit_search\",\n        signal_type: \"social\",\n        signal_key: \"tn_reddit_\" + slug(title),\n        signal_value: title,\n        confidence: Number(Math.max(0.45, Math.min(0.85, 0.7 - idx * 0.01)).toFixed(3)),\n        fetched_at: nowIso,\n        expires_at: addDays(3),\n        meta_json: { score: Number(d.score || 0), subreddit: d.subreddit || null, url: permalink }\n      });\n    });\n  }\n  if (row.source_type === \"google_news_rss\") {\n    const xml = String(row.payload || \"\");\n    const itemParts = xml.split(\"<item>\");\n    const items = itemParts.slice(1).map((part) => { const end = part.indexOf(\"</item>\"); return end >= 0 ? (\"<item>\" + part.slice(0, end) + \"</item>\") : null; }).filter(Boolean);\n    items.slice(0, maxPerSource).forEach((item, idx) => {\n      const title = readTag(item, \"title\");\n      const link = readTag(item, \"link\");\n      const pubDate = readTag(item, \"pubDate\");\n      if (!title) return;\n      candidateSignals.push({\n        region,\n        source: \"google_news_rss\",\n        signal_type: \"news\",\n        signal_key: \"tn_news_\" + slug(title + \"_\" + link),\n        signal_value: title,\n        confidence: Number(Math.max(0.5, Math.min(0.9, 0.76 - idx * 0.01)).toFixed(3)),\n        fetched_at: nowIso,\n        expires_at: addDays(2),\n        meta_json: { link: link || null, published_at: pubDate || null }\n      });\n    });\n  }\n  if (row.source_type === \"gdelt\") {\n    const articles = Array.isArray(row.payload?.articles) ? row.payload.articles : [];\n    articles.slice(0, maxPerSource).forEach((a, idx) => {\n      const title = String(a?.title || \"\").trim();\n      const url = String(a?.url || a?.sourceurl || \"\").trim();\n      if (!title) return;\n      candidateSignals.push({\n        region,\n        source: \"gdelt_doc\",\n        signal_type: \"news\",\n        signal_key: \"tn_gdelt_\" + slug(title + \"_\" + url),\n        signal_value: title,\n        confidence: Number(Math.max(0.45, Math.min(0.82, 0.7 - idx * 0.01)).toFixed(3)),\n        fetched_at: nowIso,\n        expires_at: addDays(2),\n        meta_json: { url: url || null, language: a?.language || null, seendate: a?.seendate || null }\n      });\n    });\n  }\n}\nconst dedup = new Map();\nfor (const s of candidateSignals) {\n  const key = s.signal_key;\n  if (!dedup.has(key) || Number(dedup.get(key).confidence || 0) < Number(s.confidence || 0)) {\n    dedup.set(key, s);\n  }\n}\nconst signals = Array.from(dedup.values()).sort((a, b) => Number(b.confidence || 0) - Number(a.confidence || 0));\nreturn [{\n  json: {\n    run_id: ctx.run_id || null,\n    run_ts: ctx.run_ts || nowIso,\n    region,\n    query: ctx.query || \"Tunisia\",\n    workspace_id: ctx.workspace_id || null,\n    trigger_mode: String(ctx.trigger_mode || 'schedule'),\n    signals,\n    signal_count: signals.length,\n    source_error_count: sourceErrors.length,\n    source_errors: sourceErrors,\n    generated_at: nowIso\n  }\n}];"
+      },
+      "id": "tnw12",
+      "name": "TN Normalize Tunisia Signals",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -680,
+        140
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const base = $json || {};\nlet upserted = 0;\ntry {\n  const row = $node['TN Upsert Market Signals'].json || {};\n  upserted = Number(row.upserted_rows || 0);\n} catch (e) {\n  upserted = 0;\n}\nconst top = (base.signals || []).slice(0, 5).map(s => s.signal_value).filter(Boolean);\nconst regionLabel = String(base.region || 'tunisia');\nconst summary = top.length ? (\"Top \" + regionLabel + \" search signals: \" + top.join(\", \")) : (\"No \" + regionLabel + \" signals found in this run\");\nreturn [{\n  json: {\n    ...base,\n    status: base.signal_count > 0 ? \"ok\" : \"no_data\",\n    upserted_rows: upserted,\n    top_signals: top,\n    summary_text: summary,\n    completed_at: new Date().toISOString()\n  }\n}];"
+      },
+      "id": "tnw13",
+      "name": "TN Final Summary",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -440,
+        140
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "database",
+        "operation": "executeQuery",
+        "query": "={{(() => { const base = $json || {}; const wsRaw = String(base.workspace_id || '').trim(); const uuidRe = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i; const ws = wsRaw.replace(/'/g, \"''\"); const region = String(base.region || 'tunisia'); const safeRegion = region.replace(/'/g, \"''\"); const arr = Array.isArray(base.signals) ? base.signals : []; if (!uuidRe.test(wsRaw) || !arr.length) return \"SELECT 0::int AS upserted_rows;\"; const payload = JSON.stringify(arr).replace(/'/g, \"''\"); return \"WITH src AS ( SELECT * FROM jsonb_to_recordset('\" + payload + \"'::jsonb) AS x(source text, signal_type text, signal_key text, signal_value text, confidence numeric, fetched_at timestamptz, expires_at timestamptz, meta_json jsonb) ), upserted AS ( INSERT INTO market_signals (workspace_id, source, signal_type, signal_key, signal_value, confidence, fetched_at, expires_at, meta_json) SELECT '\" + ws + \"'::uuid, COALESCE(source, 'unknown'), COALESCE(signal_type, 'trend'), COALESCE(signal_key, md5(COALESCE(signal_value, ''))), signal_value, COALESCE(confidence, 0.5), COALESCE(fetched_at, NOW()), expires_at, COALESCE(meta_json, '{}'::jsonb) || jsonb_build_object('region', '\" + safeRegion + \"') FROM src ON CONFLICT (workspace_id, signal_key) DO UPDATE SET source = EXCLUDED.source, signal_type = EXCLUDED.signal_type, signal_value = EXCLUDED.signal_value, confidence = EXCLUDED.confidence, fetched_at = EXCLUDED.fetched_at, expires_at = EXCLUDED.expires_at, meta_json = COALESCE(market_signals.meta_json, '{}'::jsonb) || COALESCE(EXCLUDED.meta_json, '{}'::jsonb), updated_at = NOW() RETURNING 1 ) SELECT COUNT(*)::int AS upserted_rows FROM upserted;\"; })()}}",
+        "options": {
+          "queryBatching": "single",
+          "replaceEmptyStrings": false
+        }
+      },
+      "id": "tnw15",
+      "name": "TN Upsert Market Signals",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "continueOnFail": true,
+      "position": [
+        -440,
+        20
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{$json.trigger_mode === 'webhook'}}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "tnw16",
+      "name": "TN If Webhook Trigger",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        -200,
+        140
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseCode": 200,
+        "responseBody": "={{$json}}",
+        "options": {}
+      },
+      "id": "tnw17",
+      "name": "TN Respond Summary",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        20,
+        140
+      ]
+    }
+  ],
+  "connections": {
+    "TN Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "TN Runtime Context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "TN Schedule Every 2 Hours": {
+      "main": [
+        [
+          {
+            "node": "TN Runtime Context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "TN Webhook Ingress": {
+      "main": [
+        [
+          {
+            "node": "TN Runtime Context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "TN Runtime Context": {
+      "main": [
+        [
+          {
+            "node": "TN Fetch Reddit Search",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "TN Fetch Google News RSS",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "TN Fetch GDELT Search",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "TN Fetch Reddit Search": {
+      "main": [
+        [
+          {
+            "node": "TN Wrap Reddit Envelope",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "TN Fetch Google News RSS": {
+      "main": [
+        [
+          {
+            "node": "TN Wrap Google Envelope",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "TN Fetch GDELT Search": {
+      "main": [
+        [
+          {
+            "node": "TN Wrap GDELT Envelope",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "TN Wrap Reddit Envelope": {
+      "main": [
+        [
+          {
+            "node": "TN Merge Sources A",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "TN Wrap Google Envelope": {
+      "main": [
+        [
+          {
+            "node": "TN Merge Sources A",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "TN Merge Sources A": {
+      "main": [
+        [
+          {
+            "node": "TN Merge Sources B",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "TN Wrap GDELT Envelope": {
+      "main": [
+        [
+          {
+            "node": "TN Merge Sources B",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "TN Merge Sources B": {
+      "main": [
+        [
+          {
+            "node": "TN Normalize Tunisia Signals",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "TN Normalize Tunisia Signals": {
+      "main": [
+        [
+          {
+            "node": "TN Upsert Market Signals",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "TN Upsert Market Signals": {
+      "main": [
+        [
+          {
+            "node": "TN Final Summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "TN Final Summary": {
+      "main": [
+        [
+          {
+            "node": "TN If Webhook Trigger",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "TN If Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "TN Respond Summary",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {},
+  "active": false,
+  "meta": {
+    "templateCredsSetupCompleted": false
+  }
+}

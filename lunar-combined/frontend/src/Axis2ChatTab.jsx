@@ -8,7 +8,7 @@ import './Axis2ChatTab.css'
 
 const COPY = {
   en: {
-    title: 'Lunar Hack Chat',
+    title: 'Sa3ed Chat',
     subtitle: 'Decision assistant from Axis 2',
     assistantTag: 'Assistant',
     userTag: 'You',
@@ -24,7 +24,7 @@ const COPY = {
     languageLabel: 'Language',
   },
   fr: {
-    title: 'Lunar Hack Chat',
+    title: 'Sa3ed Chat',
     subtitle: 'Assistant de decision depuis Axis 2',
     assistantTag: 'Assistant',
     userTag: 'Vous',
@@ -40,7 +40,7 @@ const COPY = {
     languageLabel: 'Langue',
   },
   ar: {
-    title: 'Lunar Hack Chat',
+    title: 'Sa3ed Chat',
     subtitle: 'Axis 2 chat assistant',
     assistantTag: 'Assistant',
     userTag: 'You',

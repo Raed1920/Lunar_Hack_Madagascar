@@ -1,0 +1,363 @@
+{
+  "name": "Pillar3 - Workflow 4 - Creative Media Pipeline (Agnostic)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "pillar3/creative-media",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "w4n1",
+      "name": "W4 Webhook Ingress",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -1600,
+        240
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const req = $json;\nconst body = req.body || req || {};\nconst errors = [];\nconst required = ['workspace_id', 'campaign_id', 'task_type', 'prompt'];\nfor (const key of required) {\n  if (body[key] === undefined || body[key] === null || body[key] === '') errors.push('Missing required field: ' + key);\n}\nconst allowed = ['image_generation'];\nif (body.task_type && !allowed.includes(String(body.task_type))) errors.push('task_type must be one of: ' + allowed.join(', '));\nreturn [{\n  json: {\n    workspace_id: body.workspace_id || null,\n    campaign_id: body.campaign_id || null,\n    task_type: body.task_type || null,\n    prompt: body.prompt || '',\n    constraints: body.constraints || {},\n    valid_request: errors.length === 0,\n    validation_errors: errors,\n    received_at: new Date().toISOString()\n  }\n}];"
+      },
+      "id": "w4n2",
+      "name": "W4 Validate Payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1380,
+        240
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{$json.valid_request}}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "w4n3",
+      "name": "W4 If Valid Request",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        -1160,
+        240
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "database",
+        "operation": "executeQuery",
+        "query": "={{\"WITH req AS (SELECT '\" + String($json.campaign_id || '').replace(/'/g, \"''\") + \"'::text AS campaign_id, '\" + String($json.workspace_id || '').replace(/'/g, \"''\") + \"'::text AS workspace_id, '\" + String($json.task_type || '').replace(/'/g, \"''\") + \"'::text AS task_type, '\" + String($json.prompt || '').replace(/'/g, \"''\") + \"'::text AS prompt, '\" + JSON.stringify($json.constraints || {}).replace(/'/g, \"''\") + \"'::jsonb AS constraints, \" + ($json.valid_request ? \"TRUE\" : \"FALSE\") + \" AS valid_request, '\" + String($json.received_at || new Date().toISOString()).replace(/'/g, \"''\") + \"'::timestamptz AS received_at) SELECT req.campaign_id, req.workspace_id, req.task_type, req.prompt, req.constraints, req.valid_request, req.received_at, COALESCE(c.strategy_json, '{}'::jsonb) AS campaign_strategy, COALESCE(cs.constraints_json, '{}'::jsonb) AS constraints_json, COALESCE(cs.strategy_json, '{}'::jsonb) AS strategy_json, COALESCE(bm.winning_tones_json, '{}'::jsonb) AS winning_tones_json, COALESCE(bm.winning_channels_json, '{}'::jsonb) AS winning_channels_json FROM req LEFT JOIN campaigns c ON c.id = req.campaign_id AND c.workspace_id = req.workspace_id LEFT JOIN campaign_strategies cs ON cs.campaign_id = c.id LEFT JOIN brand_memory bm ON bm.workspace_id = req.workspace_id LIMIT 1;\"}}",
+        "options": {
+          "queryBatching": "single",
+          "replaceEmptyStrings": false
+        }
+      },
+      "id": "w4n4",
+      "name": "W4 Load Campaign Context",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -940,
+        140
+      ],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const payload = $json;\nconst row = $json || {};\nconst parseJsonLike = (v, fallback) => {\n  if (v === null || v === undefined) return fallback;\n  if (typeof v === 'string') {\n    try { return JSON.parse(v); } catch (e) { return fallback; }\n  }\n  return v;\n};\nconst requestConstraints = parseJsonLike(payload.constraints, {});\nconst constraints = requestConstraints && Object.keys(requestConstraints).length ? requestConstraints : parseJsonLike(row.constraints_json, {});\nreturn [{\n  json: {\n    ...payload,\n    campaign_strategy: parseJsonLike(row.campaign_strategy, {}),\n    strategy_json: parseJsonLike(row.strategy_json, {}),\n    constraints_json: constraints,\n    winning_tones_json: parseJsonLike(row.winning_tones_json, {}),\n    winning_channels_json: parseJsonLike(row.winning_channels_json, {}),\n    media_seed: Date.now(),\n    ai_provider: { image: 'pollinations' },\n  }\n}];"
+      },
+      "id": "w4n5",
+      "name": "W4 Build Task Context",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -720,
+        140
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{$json.task_type === 'image_generation'}}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "w4n6",
+      "name": "W4 If Image Generation",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        -500,
+        140
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{'https://image.pollinations.ai/prompt/' + encodeURIComponent(String($json.prompt || '') + ', ' + String($json.constraints_json?.style || 'cinematic') + ', ultra-detailed') + '?width=1024&height=1024&nologo=true&seed=' + String($json.media_seed || Date.now())}}",
+        "options": {
+          "timeout": 15000
+        }
+      },
+      "id": "w4n7",
+      "name": "W4 AI Image Generate",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -280,
+        20
+      ],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const base = $node['W4 Build Task Context'].json;\nconst probeFailed = Boolean($json.error);\nconst aiPrompt = String(base.prompt || '') + ', ' + String(base.constraints_json?.style || 'cinematic') + ', ultra-detailed';\nconst mediaUrl = 'https://image.pollinations.ai/prompt/' + encodeURIComponent(aiPrompt) + '?width=1024&height=1024&nologo=true&seed=' + String(base.media_seed || Date.now());\nreturn [{\n  json: {\n    ...base,\n    media_type: 'image',\n    channel: base.constraints_json?.channel || null,\n    status: 'ready',\n    media_url: mediaUrl,\n    job_id: null,\n    provider_payload_json: $json,\n    error_message: probeFailed ? String($json.error.message || 'image_provider_probe_failed') : null,\n    insight_type: 'image_generation',\n    insight_json: { prompt: base.prompt, constraints: base.constraints_json || {}, ai_provider: 'pollinations-image' }\n  }\n}];"
+      },
+      "id": "w4n8",
+      "name": "W4 Normalize Image Result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -60,
+        20
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseCode": 400,
+        "responseBody": "={{ { status: 'invalid_task_type', campaign_id: $json.campaign_id, task_type: $json.task_type } }}",
+        "options": {}
+      },
+      "id": "w4n17",
+      "name": "W4 Respond Invalid Task",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        160,
+        240
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "database",
+        "operation": "executeQuery",
+        "query": "={{\"INSERT INTO generated_media (campaign_id, workspace_id, media_type, task_type, channel, media_url, job_id, status, prompt_used, provider_payload_json, error_message, publish_scheduled_at, updated_at) VALUES ('\" + String($json.campaign_id || '').replace(/'/g, \"''\") + \"', '\" + String($json.workspace_id || '').replace(/'/g, \"''\") + \"', '\" + String($json.media_type || '').replace(/'/g, \"''\") + \"', '\" + String($json.task_type || '').replace(/'/g, \"''\") + \"', \" + (($json.channel === null || $json.channel === undefined || $json.channel === '') ? \"NULL\" : (\"'\" + String($json.channel).replace(/'/g, \"''\") + \"'\")) + \", \" + (($json.media_url === null || $json.media_url === undefined || $json.media_url === '') ? \"NULL\" : (\"'\" + String($json.media_url).replace(/'/g, \"''\") + \"'\")) + \", \" + (($json.job_id === null || $json.job_id === undefined || $json.job_id === '') ? \"NULL\" : (\"'\" + String($json.job_id).replace(/'/g, \"''\") + \"'\")) + \", '\" + String($json.status || 'queued').replace(/'/g, \"''\") + \"', '\" + String($json.prompt || '').replace(/'/g, \"''\") + \"', '\" + JSON.stringify($json.provider_payload_json || {}).replace(/'/g, \"''\") + \"'::jsonb, \" + (($json.error_message === null || $json.error_message === undefined || $json.error_message === '') ? \"NULL\" : (\"'\" + String($json.error_message).replace(/'/g, \"''\") + \"'\")) + \", NOW(), NOW()) ON CONFLICT (campaign_id, task_type) DO UPDATE SET media_type = EXCLUDED.media_type, workspace_id = EXCLUDED.workspace_id, channel = EXCLUDED.channel, media_url = EXCLUDED.media_url, job_id = EXCLUDED.job_id, status = EXCLUDED.status, prompt_used = EXCLUDED.prompt_used, provider_payload_json = EXCLUDED.provider_payload_json, error_message = EXCLUDED.error_message, publish_scheduled_at = EXCLUDED.publish_scheduled_at, updated_at = NOW() RETURNING id, campaign_id, workspace_id, task_type, status, media_url, job_id, provider_payload_json;\"}}",
+        "options": {
+          "queryBatching": "single",
+          "replaceEmptyStrings": false
+        }
+      },
+      "id": "w4n14",
+      "name": "W4 Upsert Generated Media",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        600,
+        220
+      ],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "resource": "database",
+        "operation": "executeQuery",
+        "query": "={{\"INSERT INTO visual_insights (campaign_id, workspace_id, insight_type, insight_json, updated_at) VALUES ('\" + String($json.campaign_id || '').replace(/'/g, \"''\") + \"', '\" + String($json.workspace_id || '').replace(/'/g, \"''\") + \"', '\" + String($json.task_type || 'generation').replace(/'/g, \"''\") + \"', '\" + JSON.stringify({ status: $json.status || null, media_url: $json.media_url || null, job_id: $json.job_id || null }).replace(/'/g, \"''\") + \"'::jsonb, NOW()) RETURNING id, campaign_id, workspace_id;\"}}",
+        "options": {
+          "queryBatching": "single",
+          "replaceEmptyStrings": false
+        }
+      },
+      "id": "w4n15",
+      "name": "W4 Persist Visual Insights",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        820,
+        220
+      ],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseCode": 200,
+        "responseBody": "={{(() => { const row = $node['W4 Upsert Generated Media'].json || {}; return { campaign_id: row.campaign_id, workspace_id: row.workspace_id, task_type: row.task_type, status: row.status, media_url: row.media_url, job_id: row.job_id }; })()}}",
+        "options": {}
+      },
+      "id": "w4n16",
+      "name": "W4 Respond Success",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1040,
+        220
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseCode": 400,
+        "responseBody": "={{ { status: 'invalid_request', errors: $json.validation_errors || ['invalid_request'] } }}",
+        "options": {}
+      },
+      "id": "w4n18",
+      "name": "W4 Respond Invalid Payload",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        -940,
+        440
+      ]
+    }
+  ],
+  "connections": {
+    "W4 Webhook Ingress": {
+      "main": [
+        [
+          {
+            "node": "W4 Validate Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "W4 Validate Payload": {
+      "main": [
+        [
+          {
+            "node": "W4 If Valid Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "W4 If Valid Request": {
+      "main": [
+        [
+          {
+            "node": "W4 Load Campaign Context",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "W4 Respond Invalid Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "W4 Load Campaign Context": {
+      "main": [
+        [
+          {
+            "node": "W4 Build Task Context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "W4 Build Task Context": {
+      "main": [
+        [
+          {
+            "node": "W4 If Image Generation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "W4 If Image Generation": {
+      "main": [
+        [
+          {
+            "node": "W4 AI Image Generate",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "W4 Respond Invalid Task",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "W4 AI Image Generate": {
+      "main": [
+        [
+          {
+            "node": "W4 Normalize Image Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "W4 Normalize Image Result": {
+      "main": [
+        [
+          {
+            "node": "W4 Upsert Generated Media",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "W4 Upsert Generated Media": {
+      "main": [
+        [
+          {
+            "node": "W4 Persist Visual Insights",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "W4 Persist Visual Insights": {
+      "main": [
+        [
+          {
+            "node": "W4 Respond Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {},
+  "active": false,
+  "meta": {
+    "templateCredsSetupCompleted": false
+  }
+}

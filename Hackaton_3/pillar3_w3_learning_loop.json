@@ -1,0 +1,488 @@
+{
+  "name": "Pillar3 - Workflow 3 - Learning Loop (Agnostic v2)",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 0 * * *"
+            }
+          ]
+        }
+      },
+      "id": "w3n1",
+      "name": "W3 Schedule Daily Midnight",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -1540,
+        260
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const now = new Date();\nconst hasWebhookEnvelope = Boolean($json && (Object.prototype.hasOwnProperty.call($json, 'body') || Object.prototype.hasOwnProperty.call($json, 'headers')));\nconst req = hasWebhookEnvelope ? ($json.body || {}) : ($json || {});\nconst endDefault = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 0, 0, 0, 0));\nconst startDefault = new Date(endDefault);\nstartDefault.setUTCDate(startDefault.getUTCDate() - 1);\nconst startRaw = req.start_utc || req.window_start_utc || null;\nconst endRaw = req.end_utc || req.window_end_utc || null;\nconst start = startRaw ? new Date(startRaw) : startDefault;\nconst end = endRaw ? new Date(endRaw) : endDefault;\nreturn [{ json: { start_utc: start.toISOString(), end_utc: end.toISOString(), run_ts: now.toISOString(), forced_workspace_id: req.workspace_id || null, trigger_mode: hasWebhookEnvelope ? 'webhook' : 'schedule' } }];"
+      },
+      "id": "w3n2",
+      "name": "W3 Compute Yesterday Window",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1320,
+        260
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "database",
+        "operation": "executeQuery",
+        "query": "={{(() => { const ctx = $node['W3 Compute Yesterday Window'].json || {}; const wsRaw = String(ctx.forced_workspace_id || '').trim(); const ws = wsRaw.replace(/'/g, \"''\"); const uuidRe = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i; const wsFilter = uuidRe.test(wsRaw) ? (\" AND workspace_id = '\" + ws + \"'\") : \"\"; return \"SELECT solution_id, workspace_id, channel, tone_recommendation, engagement_count, conversions, published, created_at FROM campaign_feedback WHERE created_at >= '\" + String(ctx.start_utc).replace(/'/g, \"''\") + \"'::timestamptz AND created_at < '\" + String(ctx.end_utc).replace(/'/g, \"''\") + \"'::timestamptz AND published = TRUE\" + wsFilter + \";\"; })()}}",
+        "options": {
+          "queryBatching": "single",
+          "replaceEmptyStrings": false
+        }
+      },
+      "id": "w3n3",
+      "name": "W3 Query campaign_feedback",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -1100,
+        140
+      ],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "resource": "database",
+        "operation": "executeQuery",
+        "query": "={{(() => { const ctx = $node['W3 Compute Yesterday Window'].json || {}; const wsRaw = String(ctx.forced_workspace_id || '').trim(); const ws = wsRaw.replace(/'/g, \"''\"); const uuidRe = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i; const wsFilter = uuidRe.test(wsRaw) ? (\" AND workspace_id = '\" + ws + \"'\") : \"\"; return \"SELECT id, campaign_id, workspace_id, channel, tone_recommendation, confidence_score, created_at FROM campaign_solutions WHERE created_at >= '\" + String(ctx.start_utc).replace(/'/g, \"''\") + \"'::timestamptz - INTERVAL '7 days' AND created_at < '\" + String(ctx.end_utc).replace(/'/g, \"''\") + \"'::timestamptz + INTERVAL '1 day'\" + wsFilter + \";\"; })()}}",
+        "options": {
+          "queryBatching": "single",
+          "replaceEmptyStrings": false
+        }
+      },
+      "id": "w3n4",
+      "name": "W3 Query campaign_solutions",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -1100,
+        380
+      ],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const raw = $input.all().map(i => i.json);\nconst rows = [];\nfor (const r of raw) {\n  if (Array.isArray(r)) rows.push(...r);\n  else if (Array.isArray(r?.body)) rows.push(...r.body);\n  else if (r && typeof r === 'object' && ('solution_id' in r || 'engagement_count' in r)) rows.push(r);\n}\nconst w = $node['W3 Compute Yesterday Window'].json;\nreturn [{ json: { start_utc: w.start_utc, end_utc: w.end_utc, feedback: rows } }];"
+      },
+      "id": "w3n5",
+      "name": "W3 Pack Feedback",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -880,
+        140
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const raw = $input.all().map(i => i.json);\nconst rows = [];\nfor (const r of raw) {\n  if (Array.isArray(r)) rows.push(...r);\n  else if (Array.isArray(r?.body)) rows.push(...r.body);\n  else if (r && typeof r === 'object' && ('id' in r || 'confidence_score' in r)) rows.push(r);\n}\nconst w = $node['W3 Compute Yesterday Window'].json;\nreturn [{ json: { start_utc: w.start_utc, end_utc: w.end_utc, solutions: rows } }];"
+      },
+      "id": "w3n6",
+      "name": "W3 Pack Solutions",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -880,
+        380
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "append"
+      },
+      "id": "w3n7",
+      "name": "W3 Merge Packed Data",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 2,
+      "position": [
+        -660,
+        260
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const all = $input.all().map(i => i.json);\nconst f = all.find(x => x.feedback) || {};\nconst s = all.find(x => x.solutions) || {};\nconst feedback = Array.isArray(f.feedback) ? f.feedback : [];\nconst solutions = Array.isArray(s.solutions) ? s.solutions : [];\nconst start_utc = f.start_utc || s.start_utc || $node['W3 Compute Yesterday Window'].json.start_utc;\nconst end_utc = f.end_utc || s.end_utc || $node['W3 Compute Yesterday Window'].json.end_utc;\nconst bySolution = new Map();\nfor (const row of solutions) bySolution.set(String(row.id), row);\nconst toNum = (v) => { const n = Number(v); return Number.isFinite(n) ? n : 0; };\nconst wsMap = new Map();\nfor (const fb of feedback) {\n  const sol = bySolution.get(String(fb.solution_id)) || {};\n  const workspace = String(fb.workspace_id || sol.workspace_id || 'unknown_workspace');\n  const channel = String(fb.channel || sol.channel || 'unspecified');\n  const tone = String(fb.tone_recommendation || sol.tone_recommendation || 'unspecified');\n  const engagement = Math.max(0, toNum(fb.engagement_count));\n  const conversions = Math.max(0, toNum(fb.conversions));\n  const score = engagement + (conversions * 20);\n  if (!wsMap.has(workspace)) {\n    wsMap.set(workspace, { channel: new Map(), tone: new Map(), samples: 0 });\n  }\n  const agg = wsMap.get(workspace);\n  agg.samples += 1;\n\n  if (!agg.channel.has(channel)) agg.channel.set(channel, { wins: 0, total: 0, engagement_sum: 0, score_sum: 0 });\n  const c = agg.channel.get(channel);\n  c.total += 1;\n  c.engagement_sum += engagement;\n  c.score_sum += score;\n  if (conversions > 0) c.wins += 1;\n\n  if (!agg.tone.has(tone)) agg.tone.set(tone, { wins: 0, total: 0, engagement_sum: 0, score_sum: 0 });\n  const t = agg.tone.get(tone);\n  t.total += 1;\n  t.engagement_sum += engagement;\n  t.score_sum += score;\n  if (conversions > 0) t.wins += 1;\n}\n\nconst updates = [];\nconst nowIso = new Date().toISOString();\nfor (const [workspace_id, agg] of wsMap.entries()) {\n  const channel_scores = {};\n  for (const [key, v] of agg.channel.entries()) {\n    channel_scores[key] = {\n      wins: v.wins,\n      total: v.total,\n      engagement_sum: v.engagement_sum,\n      win_rate: Number((v.total ? v.wins / v.total : 0).toFixed(4)),\n      avg_score: Number((v.total ? v.score_sum / v.total : 0).toFixed(4))\n    };\n  }\n  const tone_scores = {};\n  for (const [key, v] of agg.tone.entries()) {\n    tone_scores[key] = {\n      wins: v.wins,\n      total: v.total,\n      engagement_sum: v.engagement_sum,\n      win_rate: Number((v.total ? v.wins / v.total : 0).toFixed(4)),\n      avg_score: Number((v.total ? v.score_sum / v.total : 0).toFixed(4))\n    };\n  }\n  updates.push({\n    workspace_id,\n    winning_channels_json: channel_scores,\n    winning_tones_json: tone_scores,\n    updated_at: nowIso,\n    sample_count: agg.samples\n  });\n}\n\nreturn [{ json: { start_utc, end_utc, workspace_count: updates.length, workspace_updates: updates } }];"
+      },
+      "id": "w3n8",
+      "name": "W3 Compute Winning Patterns",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -440,
+        260
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "value1": "={{$json.workspace_count}}",
+              "operation": "larger",
+              "value2": 0
+            }
+          ]
+        }
+      },
+      "id": "w3n9",
+      "name": "W3 If Has Workspace Updates",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        -220,
+        260
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const updates = $json.workspace_updates || []; return updates.map(u => ({ json: u }));"
+      },
+      "id": "w3n10",
+      "name": "W3 Expand Workspace Updates",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        0,
+        180
+      ]
+    },
+    {
+      "parameters": {
+        "batchSize": 1
+      },
+      "id": "w3n11",
+      "name": "W3 Loop Workspaces",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        220,
+        180
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "database",
+        "operation": "executeQuery",
+        "query": "={{\"INSERT INTO brand_memory (workspace_id, winning_tones_json, winning_channels_json, updated_at) VALUES ('\" + String($json.workspace_id || '').replace(/'/g, \"''\") + \"', '\" + JSON.stringify($json.winning_tones_json || {}).replace(/'/g, \"''\") + \"'::jsonb, '\" + JSON.stringify($json.winning_channels_json || {}).replace(/'/g, \"''\") + \"'::jsonb, '\" + String($json.updated_at || new Date().toISOString()).replace(/'/g, \"''\") + \"'::timestamptz) ON CONFLICT (workspace_id) DO UPDATE SET winning_tones_json = EXCLUDED.winning_tones_json, winning_channels_json = EXCLUDED.winning_channels_json, updated_at = EXCLUDED.updated_at RETURNING workspace_id;\"}}",
+        "options": {
+          "queryBatching": "single",
+          "replaceEmptyStrings": false
+        }
+      },
+      "id": "w3n12",
+      "name": "W3 Upsert brand_memory",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        440,
+        180
+      ],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const base = $node['W3 Compute Winning Patterns'].json;\nlet updated = 0;\nlet upsert_node_executed = true;\ntry {\n  const upsertItems = $items('W3 Upsert brand_memory');\n  updated = Array.isArray(upsertItems) ? upsertItems.length : 0;\n} catch (e) {\n  updated = 0;\n  upsert_node_executed = false;\n}\nconst ranked = Number(base.workspace_count || 0);\nreturn [{\n  json: {\n    start_utc: base.start_utc,\n    end_utc: base.end_utc,\n    workspaces_ranked: ranked,\n    workspaces_updated: updated,\n    workspaces_failed: Math.max(ranked - updated, 0),\n    upsert_node_executed,\n    trigger_mode: String($node['W3 Compute Yesterday Window'].json.trigger_mode || 'schedule'),\n    completed_at: new Date().toISOString()\n  }\n}];"
+      },
+      "id": "w3n13",
+      "name": "W3 Final Summary",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        440,
+        340
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const base = $node['W3 Compute Winning Patterns'].json; return [{ json: { start_utc: base.start_utc, end_utc: base.end_utc, workspaces_ranked: 0, workspaces_updated: 0, workspaces_failed: 0, status: 'no_data', trigger_mode: String($node['W3 Compute Yesterday Window'].json.trigger_mode || 'schedule'), completed_at: new Date().toISOString() } }];"
+      },
+      "id": "w3n14",
+      "name": "W3 No Data Summary",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        0,
+        360
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "pillar3/learning-loop",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "w3n15",
+      "name": "W3 Webhook Ingress",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -1540,
+        60
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseCode": 200,
+        "responseBody": "={{$json}}",
+        "options": {}
+      },
+      "id": "w3n16",
+      "name": "W3 Respond Summary",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        660,
+        420
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{$json.trigger_mode === 'webhook'}}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "w3n17",
+      "name": "W3 If Webhook Trigger",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        440,
+        420
+      ]
+    }
+  ],
+  "connections": {
+    "W3 Schedule Daily Midnight": {
+      "main": [
+        [
+          {
+            "node": "W3 Compute Yesterday Window",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "W3 Webhook Ingress": {
+      "main": [
+        [
+          {
+            "node": "W3 Compute Yesterday Window",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "W3 Compute Yesterday Window": {
+      "main": [
+        [
+          {
+            "node": "W3 Query campaign_feedback",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "W3 Query campaign_solutions",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "W3 Query campaign_feedback": {
+      "main": [
+        [
+          {
+            "node": "W3 Pack Feedback",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "W3 Query campaign_solutions": {
+      "main": [
+        [
+          {
+            "node": "W3 Pack Solutions",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "W3 Pack Feedback": {
+      "main": [
+        [
+          {
+            "node": "W3 Merge Packed Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "W3 Pack Solutions": {
+      "main": [
+        [
+          {
+            "node": "W3 Merge Packed Data",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "W3 Merge Packed Data": {
+      "main": [
+        [
+          {
+            "node": "W3 Compute Winning Patterns",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "W3 Compute Winning Patterns": {
+      "main": [
+        [
+          {
+            "node": "W3 If Has Workspace Updates",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "W3 If Has Workspace Updates": {
+      "main": [
+        [
+          {
+            "node": "W3 Expand Workspace Updates",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "W3 No Data Summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "W3 Expand Workspace Updates": {
+      "main": [
+        [
+          {
+            "node": "W3 Loop Workspaces",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "W3 Loop Workspaces": {
+      "main": [
+        [
+          {
+            "node": "W3 Upsert brand_memory",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "W3 Final Summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "W3 Upsert brand_memory": {
+      "main": [
+        [
+          {
+            "node": "W3 Loop Workspaces",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "W3 Final Summary": {
+      "main": [
+        [
+          {
+            "node": "W3 If Webhook Trigger",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "W3 No Data Summary": {
+      "main": [
+        [
+          {
+            "node": "W3 If Webhook Trigger",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "W3 If Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "W3 Respond Summary",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {},
+  "active": false,
+  "meta": {
+    "templateCredsSetupCompleted": false
+  }
+}

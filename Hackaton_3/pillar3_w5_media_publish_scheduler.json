@@ -1,0 +1,589 @@
+{
+  "name": "Pillar3 - Workflow 5 - Media Publish Scheduler (Agnostic)",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 * * * *"
+            }
+          ]
+        }
+      },
+      "id": "w5n1",
+      "name": "W5 Schedule Hourly",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -1360,
+        240
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "pillar3/media-publish",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "w5n16",
+      "name": "W5 Webhook Ingress",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -1360,
+        80
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const hasWebhookEnvelope = Boolean($json && (Object.prototype.hasOwnProperty.call($json, 'body') || Object.prototype.hasOwnProperty.call($json, 'headers')));\nconst req = hasWebhookEnvelope ? ($json.body || {}) : ($json || {});\nreturn [{ json: { trigger_mode: hasWebhookEnvelope ? 'webhook' : 'schedule', workspace_id: req.workspace_id || null, campaign_id: req.campaign_id || null } }];"
+      },
+      "id": "w5n17",
+      "name": "W5 Runtime Context",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1140,
+        180
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "database",
+        "operation": "executeQuery",
+        "query": "={{(() => { const ctx = $node['W5 Runtime Context'].json || {}; const uuidRe = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i; const wsRaw = String(ctx.workspace_id || '').trim(); const campaignRaw = String(ctx.campaign_id || '').trim(); const ws = wsRaw.replace(/'/g, \"''\"); const campaignId = campaignRaw.replace(/'/g, \"''\"); let where = \"status = 'approved' AND (publish_scheduled_at IS NULL OR publish_scheduled_at <= NOW())\"; if (uuidRe.test(wsRaw)) where += \" AND workspace_id = '\" + ws + \"'::uuid\"; if (uuidRe.test(campaignRaw)) where += \" AND campaign_id = '\" + campaignId + \"'::uuid\"; return \"SELECT COALESCE(jsonb_agg(jsonb_build_object('id', id, 'campaign_id', campaign_id, 'workspace_id', workspace_id, 'task_type', task_type, 'media_type', media_type, 'channel', COALESCE(channel, 'instagram'), 'media_url', media_url, 'job_id', job_id, 'status', status, 'prompt_used', prompt_used)), '[]'::jsonb) AS assets FROM generated_media WHERE \" + where + \";\"; })()}}",
+        "options": {
+          "queryBatching": "single",
+          "replaceEmptyStrings": false
+        }
+      },
+      "id": "w5n2",
+      "name": "W5 Fetch Approved Assets",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -1140,
+        240
+      ],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const row = $json || {};\nconst ctx = $node['W5 Runtime Context'].json || {};\nconst parseJsonLike = (v, fallback) => {\n  if (v === null || v === undefined) return fallback;\n  if (typeof v === 'string') {\n    try { return JSON.parse(v); } catch (e) { return fallback; }\n  }\n  return v;\n};\nconst assets = parseJsonLike(row.assets, []);\nreturn [{ json: { assets: Array.isArray(assets) ? assets : [], asset_count: Array.isArray(assets) ? assets.length : 0, run_ts: new Date().toISOString(), trigger_mode: String(ctx.trigger_mode || 'schedule') } }];"
+      },
+      "id": "w5n3",
+      "name": "W5 Parse Asset Batch",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -920,
+        240
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "value1": "={{$json.asset_count}}",
+              "operation": "larger",
+              "value2": 0
+            }
+          ]
+        }
+      },
+      "id": "w5n4",
+      "name": "W5 If Has Assets",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        -700,
+        240
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const assets = $json.assets || []; return assets.map(a => ({ json: a }));"
+      },
+      "id": "w5n5",
+      "name": "W5 Expand Assets",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -480,
+        180
+      ]
+    },
+    {
+      "parameters": {
+        "batchSize": 1
+      },
+      "id": "w5n6",
+      "name": "W5 Loop Assets",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        -260,
+        180
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const item = $json;\nconst channel = String(item.channel || '').toLowerCase();\nconst social = ['instagram', 'facebook', 'x', 'twitter', 'linkedin', 'tiktok'];\nconst route_type = social.includes(channel) ? 'social' : 'direct';\nconst adapter_url = route_type === 'social' ? 'https://httpbin.org/post?adapter=social' : 'https://httpbin.org/post?adapter=direct';\nreturn [{ json: { ...item, channel, route_type, adapter_url } }];"
+      },
+      "id": "w5n7",
+      "name": "W5 Route Channel",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -40,
+        180
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{$json.route_type === 'social'}}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "w5n8",
+      "name": "W5 If Social Route",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        180,
+        180
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{$json.adapter_url}}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { channel: $json.channel, media_url: $json.media_url, caption: $json.prompt_used || '', campaign_id: $json.campaign_id, media_id: $json.id } }}",
+        "options": {
+          "timeout": 15000
+        }
+      },
+      "id": "w5n9",
+      "name": "W5 Publish Social",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        400,
+        100
+      ],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{$json.adapter_url}}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { channel: $json.channel, media_url: $json.media_url, body: $json.prompt_used || '', campaign_id: $json.campaign_id, media_id: $json.id } }}",
+        "options": {
+          "timeout": 15000
+        }
+      },
+      "id": "w5n10",
+      "name": "W5 Publish Direct",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        400,
+        260
+      ],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const req = $node['W5 Route Channel'].json;\nconst statusCode = Number($json.statusCode || 200);\nconst success = !$json.error && statusCode >= 200 && statusCode < 300;\nreturn [{\n  json: {\n    ...req,\n    publish_status: success ? 'published' : 'failed',\n    publish_response_json: $json,\n    error_message: success ? null : String(($json.error && $json.error.message) || 'publish_failed')\n  }\n}];"
+      },
+      "id": "w5n11",
+      "name": "W5 Evaluate Publish Result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        620,
+        180
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "database",
+        "operation": "executeQuery",
+        "query": "={{\"UPDATE generated_media SET status = '\" + String($json.publish_status || 'failed').replace(/'/g, \"''\") + \"', published_at = CASE WHEN '\" + String($json.publish_status || 'failed').replace(/'/g, \"''\") + \"' = 'published' THEN NOW() ELSE published_at END, publish_response_json = '\" + JSON.stringify($json.publish_response_json || {}).replace(/'/g, \"''\") + \"'::jsonb, error_message = \" + (($json.error_message === null || $json.error_message === undefined || $json.error_message === '') ? \"NULL\" : (\"'\" + String($json.error_message).replace(/'/g, \"''\") + \"'\")) + \", updated_at = NOW() WHERE id = \" + Number($json.id || 0) + \" RETURNING id, campaign_id, status;\"}}",
+        "options": {
+          "queryBatching": "single",
+          "replaceEmptyStrings": false
+        }
+      },
+      "id": "w5n12",
+      "name": "W5 Update Publish Status",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        840,
+        180
+      ],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://httpbin.org/post?queue=analytics",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { media_id: $json.id, campaign_id: $json.campaign_id, status: $json.status, queued_at: new Date().toISOString() } }}",
+        "options": {
+          "timeout": 15000
+        }
+      },
+      "id": "w5n13",
+      "name": "W5 Queue Analytics Pull",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1060,
+        180
+      ],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const base = $node['W5 Parse Asset Batch'].json;\nlet updated = 0;\ntry {\n  const updatedItems = $items('W5 Update Publish Status');\n  updated = Array.isArray(updatedItems) ? updatedItems.length : 0;\n} catch (e) {\n  updated = 0;\n}\nreturn [{ json: { asset_count: Number(base.asset_count || 0), processed_count: updated, skipped_count: Math.max(Number(base.asset_count || 0) - updated, 0), trigger_mode: String(base.trigger_mode || 'schedule'), completed_at: new Date().toISOString() } }];"
+      },
+      "id": "w5n14",
+      "name": "W5 Final Summary",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1280,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "return [{ json: { asset_count: 0, processed_count: 0, skipped_count: 0, status: 'no_assets', trigger_mode: String($json.trigger_mode || 'schedule'), completed_at: new Date().toISOString() } }];"
+      },
+      "id": "w5n15",
+      "name": "W5 No Assets Summary",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -480,
+        360
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{$json.trigger_mode === 'webhook'}}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "w5n18",
+      "name": "W5 If Webhook Trigger",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        1500,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseCode": 200,
+        "responseBody": "={{$json}}",
+        "options": {}
+      },
+      "id": "w5n19",
+      "name": "W5 Respond Summary",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1720,
+        300
+      ]
+    }
+  ],
+  "connections": {
+    "W5 Schedule Hourly": {
+      "main": [
+        [
+          {
+            "node": "W5 Runtime Context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "W5 Webhook Ingress": {
+      "main": [
+        [
+          {
+            "node": "W5 Runtime Context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "W5 Runtime Context": {
+      "main": [
+        [
+          {
+            "node": "W5 Fetch Approved Assets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "W5 Fetch Approved Assets": {
+      "main": [
+        [
+          {
+            "node": "W5 Parse Asset Batch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "W5 Parse Asset Batch": {
+      "main": [
+        [
+          {
+            "node": "W5 If Has Assets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "W5 If Has Assets": {
+      "main": [
+        [
+          {
+            "node": "W5 Expand Assets",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "W5 No Assets Summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "W5 Expand Assets": {
+      "main": [
+        [
+          {
+            "node": "W5 Loop Assets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "W5 Loop Assets": {
+      "main": [
+        [
+          {
+            "node": "W5 Route Channel",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "W5 Final Summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "W5 Route Channel": {
+      "main": [
+        [
+          {
+            "node": "W5 If Social Route",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "W5 If Social Route": {
+      "main": [
+        [
+          {
+            "node": "W5 Publish Social",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "W5 Publish Direct",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "W5 Publish Social": {
+      "main": [
+        [
+          {
+            "node": "W5 Evaluate Publish Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "W5 Publish Direct": {
+      "main": [
+        [
+          {
+            "node": "W5 Evaluate Publish Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "W5 Evaluate Publish Result": {
+      "main": [
+        [
+          {
+            "node": "W5 Update Publish Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "W5 Update Publish Status": {
+      "main": [
+        [
+          {
+            "node": "W5 Queue Analytics Pull",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "W5 Queue Analytics Pull": {
+      "main": [
+        [
+          {
+            "node": "W5 Loop Assets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "W5 Final Summary": {
+      "main": [
+        [
+          {
+            "node": "W5 If Webhook Trigger",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "W5 No Assets Summary": {
+      "main": [
+        [
+          {
+            "node": "W5 If Webhook Trigger",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "W5 If Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "W5 Respond Summary",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {},
+  "active": false,
+  "meta": {
+    "templateCredsSetupCompleted": false
+  }
+}

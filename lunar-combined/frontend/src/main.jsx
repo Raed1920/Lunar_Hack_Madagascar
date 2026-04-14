@@ -7,6 +7,7 @@ import AgentAnalysis from './AgentAnalysis.jsx'
 import NavBar from './NavBar.jsx'
 import Axis2ChatTab from './Axis2ChatTab.jsx'
 import SeoTab from './SeoTab.jsx'
+import Pillar3QualityTab from './Pillar3QualityTab.jsx'
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
@@ -17,6 +18,7 @@ createRoot(document.getElementById('root')).render(
         <Route path="/agents" element={<AgentAnalysis />} />
         <Route path="/axis2-chat" element={<Axis2ChatTab />} />
         <Route path="/seo-agent" element={<SeoTab />} />
+        <Route path="/pillar3-test" element={<Pillar3QualityTab />} />
       </Routes>
     </BrowserRouter>
   </StrictMode>,

@@ -6,7 +6,7 @@ export default function NavBar() {
     <nav className="navbar">
       <div className="navbar-brand">
         <span className="brand-icon">📡</span>
-        <span className="brand-text">Lunar KPI</span>
+        <span className="brand-text">Sa3ed</span>
       </div>
       <div className="navbar-links">
         <NavLink to="/" end className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}>
@@ -17,6 +17,9 @@ export default function NavBar() {
         </NavLink>
         <NavLink to="/axis2-chat" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}>
           💬 Axis 2 Chat
+        </NavLink>
+        <NavLink to="/pillar3-test" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}>
+          🧪 Pillar 3 Test
         </NavLink>
         <NavLink to="/seo-agent" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}>
           🔍 SEO Agent

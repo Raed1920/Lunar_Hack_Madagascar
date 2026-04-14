@@ -1,0 +1,421 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Pillar 3 Quality Chat Test</title>
+  <style>
+    :root {
+      --bg: #f4f1ea;
+      --card: #fffdf8;
+      --ink: #22211f;
+      --muted: #68645f;
+      --accent: #1f6f5c;
+      --border: #ded6c8;
+      --user-bubble: #e8f5ef;
+      --assistant-bubble: #ffffff;
+      --error: #b42318;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+      color: var(--ink);
+      background: radial-gradient(circle at 10% 20%, #fffefb 0%, #f4f1ea 40%, #ece5d8 100%);
+      min-height: 100vh;
+      padding: 24px;
+    }
+
+    .shell {
+      max-width: 980px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 16px;
+    }
+
+    .panel {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 16px;
+      box-shadow: 0 10px 28px rgba(0, 0, 0, 0.05);
+    }
+
+    h1 {
+      margin: 0 0 8px;
+      font-size: 24px;
+      letter-spacing: 0.2px;
+    }
+
+    h2 {
+      margin: 0 0 12px;
+      font-size: 18px;
+    }
+
+    .muted {
+      color: var(--muted);
+      margin: 0 0 12px;
+    }
+
+    .field {
+      margin-bottom: 12px;
+    }
+
+    label {
+      display: block;
+      font-size: 13px;
+      margin-bottom: 6px;
+      color: var(--muted);
+      font-weight: 600;
+    }
+
+    textarea,
+    input {
+      width: 100%;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 10px;
+      font: inherit;
+      background: #fff;
+      color: var(--ink);
+    }
+
+    textarea {
+      min-height: 120px;
+      resize: vertical;
+    }
+
+    .actions {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      margin-top: 10px;
+    }
+
+    button {
+      border: none;
+      background: var(--accent);
+      color: #fff;
+      border-radius: 10px;
+      padding: 10px 14px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    button:disabled {
+      opacity: 0.55;
+      cursor: not-allowed;
+    }
+
+    .chat-window {
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 12px;
+      background: #fff;
+      min-height: 220px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .bubble {
+      border-radius: 12px;
+      padding: 10px 12px;
+      max-width: 100%;
+      line-height: 1.45;
+      white-space: pre-wrap;
+      border: 1px solid var(--border);
+    }
+
+    .bubble.user {
+      align-self: flex-end;
+      background: var(--user-bubble);
+    }
+
+    .bubble.assistant {
+      align-self: flex-start;
+      background: var(--assistant-bubble);
+    }
+
+    .clarification-box {
+      align-self: flex-start;
+      width: 100%;
+      border: 1px solid #f4cc8a;
+      border-radius: 10px;
+      padding: 10px;
+      background: #fff8ea;
+    }
+
+    .clarification-box h3 {
+      margin: 0 0 8px;
+      font-size: 14px;
+    }
+
+    .clarification-box ol {
+      margin: 0;
+      padding-left: 18px;
+    }
+
+    .clarification-box li {
+      margin-bottom: 6px;
+      line-height: 1.4;
+    }
+
+    .error {
+      margin-top: 8px;
+      font-size: 13px;
+      color: var(--error);
+      font-weight: 700;
+    }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+  <script type="text/babel">
+    const { useState } = React;
+
+    function App() {
+      const [message, setMessage] = useState("I want to promote my artisan bread in Tunis for 2 weeks with a 100-800 TND budget.");
+      const [submittedMessage, setSubmittedMessage] = useState("");
+      const [images, setImages] = useState([]);
+      const [loading, setLoading] = useState(false);
+      const [error, setError] = useState("");
+      const [chatEnvelope, setChatEnvelope] = useState(null);
+      const [opsLoading, setOpsLoading] = useState(false);
+      const [opsError, setOpsError] = useState("");
+      const [opsImpact, setOpsImpact] = useState(null);
+
+      const readImageDimensions = (file) =>
+        new Promise((resolve) => {
+          const objectUrl = URL.createObjectURL(file);
+          const img = new Image();
+          img.onload = () => {
+            URL.revokeObjectURL(objectUrl);
+            resolve({ width: img.width, height: img.height });
+          };
+          img.onerror = () => {
+            URL.revokeObjectURL(objectUrl);
+            resolve({ width: null, height: null });
+          };
+          img.src = objectUrl;
+        });
+
+      const readImageBase64 = (file) =>
+        new Promise((resolve) => {
+          const reader = new FileReader();
+          reader.onload = () => {
+            const dataUrl = String(reader.result || "");
+            const parts = dataUrl.split(",");
+            resolve(parts.length > 1 ? parts[1] : null);
+          };
+          reader.onerror = () => resolve(null);
+          reader.readAsDataURL(file);
+        });
+
+      const buildImageMeta = async (file) => {
+        const baseMeta = {
+          filename: file.name,
+          mime_type: file.type || null,
+          size_bytes: file.size || null,
+          width: null,
+          height: null,
+          notes: null,
+          data_base64: null,
+        };
+
+        if (!file.type.startsWith("image/")) {
+          return baseMeta;
+        }
+
+        const [dims, dataBase64] = await Promise.all([
+          readImageDimensions(file),
+          readImageBase64(file),
+        ]);
+
+        return {
+          ...baseMeta,
+          width: dims.width,
+          height: dims.height,
+          data_base64: dataBase64,
+        };
+      };
+
+      const onImagesChange = async (event) => {
+        const files = Array.from(event.target.files || []);
+        const metas = await Promise.all(files.map(buildImageMeta));
+        setImages(metas);
+      };
+
+      const submit = async () => {
+        setLoading(true);
+        setError("");
+
+        try {
+          const payload = {
+            message,
+            workspace_id: "11111111-1111-1111-1111-111111111111",
+            images,
+          };
+
+          const response = await fetch("/v1/marketing/chat", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          });
+
+          const data = await response.json();
+          if (!response.ok) {
+            throw new Error(data?.detail || "Generation failed");
+          }
+
+          setSubmittedMessage(message.trim());
+          setChatEnvelope(data);
+        } catch (err) {
+          setError(String(err.message || err));
+        } finally {
+          setLoading(false);
+        }
+      };
+
+      const refreshWorkflowImpact = async () => {
+        setOpsLoading(true);
+        setOpsError("");
+        try {
+          const response = await fetch(
+            "/v1/marketing/ops/n8n-impact?workspace_id=11111111-1111-1111-1111-111111111111"
+          );
+          const data = await response.json();
+          if (!response.ok) {
+            throw new Error(data?.detail || "Failed to load workflow impact");
+          }
+          setOpsImpact(data);
+        } catch (err) {
+          setOpsError(String(err.message || err));
+        } finally {
+          setOpsLoading(false);
+        }
+      };
+
+      const triggerAllWorkflows = async () => {
+        setOpsLoading(true);
+        setOpsError("");
+        try {
+          const response = await fetch(
+            "/v1/marketing/ops/workflows/trigger?workspace_id=11111111-1111-1111-1111-111111111111&run_signal=true&run_learning=true&run_publish=true",
+            { method: "POST" }
+          );
+          const data = await response.json();
+          if (!response.ok) {
+            throw new Error(data?.detail || "Failed to trigger workflows");
+          }
+          setOpsImpact(data);
+          await refreshWorkflowImpact();
+        } catch (err) {
+          setOpsError(String(err.message || err));
+        } finally {
+          setOpsLoading(false);
+        }
+      };
+
+      const questions = Array.isArray(chatEnvelope?.clarifying_questions)
+        ? chatEnvelope.clarifying_questions.filter((item) => String(item || "").trim())
+        : [];
+
+      const showClarification = chatEnvelope?.status === "question_asked";
+
+      return (
+        <div className="shell">
+          <section className="panel">
+            <h1>Pillar 3 Quality Chat Test</h1>
+            <p className="muted">User-facing chat preview only.</p>
+
+            <div className="field">
+              <label>Your message</label>
+              <textarea value={message} onChange={(e) => setMessage(e.target.value)} />
+            </div>
+
+            <div className="field">
+              <label>Optional images</label>
+              <input type="file" accept="image/*" multiple onChange={onImagesChange} />
+            </div>
+
+            <div className="actions">
+              <button onClick={submit} disabled={loading || !message.trim()}>
+                {loading ? "Sending..." : "Send"}
+              </button>
+            </div>
+
+            {error && <div className="error">{error}</div>}
+          </section>
+
+          <section className="panel">
+            <h2>Conversation</h2>
+            <div className="chat-window">
+              {!chatEnvelope && !loading && (
+                <p className="muted">The assistant reply appears here after you send a message.</p>
+              )}
+
+              {submittedMessage && (
+                <div className="bubble user">{submittedMessage}</div>
+              )}
+
+              {chatEnvelope?.assistant_message && (
+                <div className="bubble assistant">{chatEnvelope.assistant_message}</div>
+              )}
+
+              {showClarification && (
+                <div className="clarification-box">
+                  <h3>Please clarify</h3>
+                  {questions.length > 0 ? (
+                    <ol>
+                      {questions.map((question, index) => (
+                        <li key={`${index}-${question}`}>{question}</li>
+                      ))}
+                    </ol>
+                  ) : (
+                    <div>{chatEnvelope?.assistant_message || "Could you share more details so I can generate your plan?"}</div>
+                  )}
+                </div>
+              )}
+            </div>
+          </section>
+
+          <section className="panel">
+            <h2>Workflow Ops</h2>
+            <p className="muted">Trigger and inspect W1, W3, W5 plus global n8n impact.</p>
+            <div className="actions">
+              <button onClick={triggerAllWorkflows} disabled={opsLoading}>
+                {opsLoading ? "Running..." : "Trigger W1 + W3 + W5"}
+              </button>
+              <button onClick={refreshWorkflowImpact} disabled={opsLoading}>
+                Refresh n8n Impact
+              </button>
+            </div>
+
+            {opsError && <div className="error">{opsError}</div>}
+
+            <div className="chat-window" style={{ marginTop: 10 }}>
+              {!opsImpact && !opsLoading && (
+                <p className="muted">No workflow impact data loaded yet.</p>
+              )}
+              {opsImpact && (
+                <div className="bubble assistant">{JSON.stringify(opsImpact, null, 2)}</div>
+              )}
+            </div>
+          </section>
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+  </script>
+</body>
+</html>

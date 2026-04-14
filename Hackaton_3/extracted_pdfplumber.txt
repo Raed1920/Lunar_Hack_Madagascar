@@ -1,0 +1,80 @@
+
+
+===== PAGE 1 =====
+LUNAR HACK 2.0 • 11–12 AVRIL 2026 • ATIA CLUB FST
+AI-Powered Smart Business Suite
+Problématique officielle — Faculté des Sciences de Tunis
+Contexte
+Lespetitesetmoyennesentreprisesmanquentsouventd’outilsaccessiblespourexploiterleursdonnées,
+automatiser leur marketing et engager efficacement leurs clients. L’intelligence artificielle offre aujour-
+d’hui des leviers concrets pour combler ce fossé — mais leur intégration reste un défi pour les équipes
+sans expertise technique avancée.
+Énoncé du challenge
+Concevez une plateforme AI qui rend n’importe quelle PME « smart »
+Votre solution devra combiner analyse de données, automation marketing, intelligence conversationnelle
+et création de contenu pour transformer la manière dont une PME comprend ses clients, communique avec
+eux et prend ses décisions commerciales.
+Les 3 piliers à adresser
+01 03
+Smart Analytics Dashboard Marketing AI Assistant
+Dashboard interactif avec insights automatiques, Assistant capable de générer des idées de commu-
+KPIs temps réel et recommandations basées sur les nication, du contenu marketing, des visuels et des
+données clients et ventes. textes adaptés à un produit, une audience ou une
+campagne.
+02
+Sales Intelligence Agent
+Agent conversationnel qui engage le client, qualifie
+ses besoins et génère automatiquement des recom-
+mandations commerciales personnalisées selon son
+profil, son secteur et ses intentions.
+Note : Les équipes doivent couvrir au minimum 2 piliers. Profondeur et utilité réelle priment sur la quantité.
+Exemples illustratifs
+Les exemples donnés plus loin sont à titre illustratif uniquement. Ils servent à montrer le niveau
+de valeur attendu, mais ne limitent pas votre solution. Vous pouvez imaginer d’autres secteurs, d’autres
+parcours utilisateur, d’autres logiques produit et d’autres idées innovantes.
+
+===== PAGE 2 =====
+01 — Smart Analytics Dashboard
+Secteur exemple : E-commerce de vêtements
+Le dashboard affiche en temps réel :
+— KPIs automatiques : chiffre d’affaires du jour, taux de conversion, panier moyen
+— Insight automatique généré par l’IA : «Vos ventes de robes augmentent de 40% le vendredi soir —
+envisagez une promo ciblée sur ce créneau»
+— Visualisation : graphe des produits les plus consultés vs les plus achetés
+— Recommandationactionnable:«3clientsVIPn’ontpascommandédepuis30jours—relancez-les»
+02 — Sales Intelligence Agent
+Secteur exemple : Agence de services digitaux
+Scénario de démo live :
+— Un prospect arrive sur le site et démarre le chat
+— L’agent pose des questions : «Vous cherchez quoi exactement? Quel est votre secteur? Quel est
+votre budget mensuel?»
+— Il détecte qu’il s’agit d’un restaurant qui cherche à booster sa présence en ligne
+— Il génère automatiquement une recommandation ou un pitch adapté au besoin détecté
+— Il propose un rendez-vous, une prise de contact ou l’envoi du résumé par email
+03 — Marketing AI Assistant
+Secteur exemple : Boulangerie artisanale
+Le commerçant entre simplement : «Je veux promouvoir mon nouveau pain au levain sur Instagram»
+La plateforme génère automatiquement :
+— Un visuel cohérent avec le produit et l’univers de la marque
+— Une caption Instagram prête à publier
+— 3 variantes de ton : professionnel, fun, storytelling
+— Une suggestion de hashtags et de moment idéal de publication
+Livrables attendus
+• deposer le projet en Github — Include code documentation (Readme.md file and comments)
+• video demo maximum 2 min —
+• ajouter un manual de utilisation de l application — maximum 10 pages .
+• Prototype fonctionnel — démo interactive couvrant au minimum 2 des 3 piliers.
+• Cas d’usage concret — solution appliquée à un secteur réel (e-commerce, food, services...).
+• Démonstration live — le jury évalue le produit en conditions réelles.
+• Pitch deck (5 min presentation + 5min qa) — problème, solution, logique produit et potentiel
+business.
+Outils suggérés (non restrictif)
+
+===== PAGE 3 =====
+LLMs Chatbots/Agents Automation Basesdedonnées Dashboards n8n
+Applicationsweb Applicationsmobiles Analysededonnées Générationdecontenu APIs
+Conseil aux équipes : Choisissez un secteur cible précis et adressez 2 piliers en profondeur. Une
+solution simple mais cohérente, utile et bien démontrée sera plus convaincante qu’un produit trop
+ambitieuxmaisincomplet.Lesexemplesproposésdanscedocumentsontlàpourinspirervotreréflexion,
+paspourvousenfermer:osezproposervotrepropreangleetvotreproprevisiondu«smartbusiness».
+ATIA Club FST • LunarHack2.0 • 11–12avril2026 • FacultédesSciencesdeTunis

@@ -1,0 +1,418 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sa3ed - Architecture 2 Multi Agents</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --panel: #111b31;
+      --panel-soft: #172442;
+      --line: #31456e;
+      --text: #e5ecff;
+      --muted: #9bb0d8;
+      --accent: #58d0ff;
+      --accent-2: #7d8bff;
+      --ok: #43d394;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: Segoe UI, Tahoma, Geneva, Verdana, sans-serif;
+      background:
+        radial-gradient(circle at 10% 5%, #1f2f57 0%, transparent 35%),
+        radial-gradient(circle at 90% 8%, #25346a 0%, transparent 32%),
+        var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+    }
+
+    .wrap {
+      max-width: 1160px;
+      margin: 0 auto;
+      padding: 24px 16px 40px;
+    }
+
+    .hero {
+      background: linear-gradient(130deg, var(--panel), var(--panel-soft));
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 18px;
+      margin-bottom: 14px;
+    }
+
+    .hero h1 {
+      margin: 0 0 6px;
+      font-size: 26px;
+    }
+
+    .hero p {
+      margin: 0;
+      color: var(--muted);
+    }
+
+    .nav {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin: 12px 0 0;
+    }
+
+    .nav a {
+      color: var(--text);
+      text-decoration: none;
+      border: 1px solid var(--line);
+      background: #12203b;
+      border-radius: 999px;
+      padding: 7px 12px;
+      font-size: 13px;
+    }
+
+    .card {
+      background: linear-gradient(140deg, var(--panel), #131f38);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 14px;
+      margin-bottom: 12px;
+    }
+
+    .card h2 {
+      margin: 0 0 8px;
+      font-size: 20px;
+      color: var(--accent);
+    }
+
+    .meta {
+      display: inline-block;
+      margin-bottom: 8px;
+      color: #dbe6ff;
+      background: rgba(88, 208, 255, 0.12);
+      border: 1px solid rgba(88, 208, 255, 0.32);
+      border-radius: 8px;
+      padding: 3px 8px;
+      font-size: 12px;
+    }
+
+    .cols {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 10px;
+    }
+
+    .panel {
+      background: rgba(12, 19, 36, 0.72);
+      border: 1px solid #2e4067;
+      border-radius: 10px;
+      padding: 10px;
+    }
+
+    .panel h3 {
+      margin: 0 0 7px;
+      font-size: 14px;
+      color: var(--accent-2);
+    }
+
+    ul {
+      margin: 0;
+      padding-left: 18px;
+    }
+
+    li { margin: 4px 0; }
+
+    code {
+      color: #b7ffdb;
+      background: rgba(67, 211, 148, 0.12);
+      border: 1px solid rgba(67, 211, 148, 0.3);
+      border-radius: 6px;
+      padding: 1px 5px;
+      font-family: Consolas, monospace;
+      font-size: 12px;
+    }
+
+    .flow {
+      background: #0c152b;
+      border: 1px dashed #3a5384;
+      border-radius: 10px;
+      padding: 10px;
+      color: #c8d7ff;
+      font-family: Consolas, monospace;
+      font-size: 12px;
+      overflow-x: auto;
+      white-space: pre;
+    }
+
+    .graph-grid {
+      display: grid;
+      gap: 10px;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      margin-top: 12px;
+    }
+
+    .graph-card {
+      background: rgba(9, 15, 30, 0.82);
+      border: 1px solid #355088;
+      border-radius: 12px;
+      padding: 10px;
+    }
+
+    .graph-card h3 {
+      margin: 0 0 8px;
+      font-size: 14px;
+      color: #9ddcff;
+    }
+
+    .graph-note {
+      margin: 8px 0 0;
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .chart-svg {
+      width: 100%;
+      height: auto;
+      display: block;
+      border-radius: 8px;
+      background: #0a1226;
+      border: 1px solid #2c4677;
+    }
+
+    .foot {
+      margin-top: 12px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .ok {
+      color: var(--ok);
+      font-weight: 700;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <section class="hero" id="top">
+      <h1>Architecture Sa3ed - 2 Multi Agents</h1>
+      <p>Document limite a deux parcours uniquement: Dashboard/Analyse et Axis 2 Chat.</p>
+      <div class="nav">
+        <a href="#general">Vue generale</a>
+        <a href="#dashboard-analyse">Dashboard/Analyse</a>
+        <a href="#axis2">Axis 2 Chat</a>
+        <a href="#coordination">Coordination IA</a>
+      </div>
+    </section>
+
+    <section class="card" id="general">
+      <h2>1) Vue generale</h2>
+      <span class="meta">Scope restreint: 2 multi agents seulement</span>
+      <div class="flow">User
+  -> BrowserRouter
+  -> NavBar
+  -> [Dashboard/Analyse] ou [Axis 2 Chat]
+  -> Backend specialise
+  -> Reponse structuree
+  -> Rendu UI</div>
+
+      <div class="cols" style="margin-top:10px;">
+        <div class="panel">
+          <h3>Routes conservees</h3>
+          <ul>
+            <li><code>/</code> -> Dashboard</li>
+            <li><code>/agents</code> -> Analyse multi-agents</li>
+            <li><code>/axis2-chat</code> -> Chat Axis 2</li>
+          </ul>
+        </div>
+        <div class="panel">
+          <h3>Variables reseau utiles</h3>
+          <ul>
+            <li><code>VITE_API_BASE</code></li>
+            <li><code>VITE_WS_URL</code></li>
+            <li><code>VITE_AXIS2_API_BASE_URL</code></li>
+          </ul>
+        </div>
+        <div class="panel">
+          <h3>Principe</h3>
+          <ul>
+            <li>Isolation metier par parcours</li>
+            <li>Orchestration backend par domaine</li>
+            <li>Rendu front simple et actionnable</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section class="card" id="dashboard-analyse">
+      <h2>2) Multi Agent: Dashboard / Analyse</h2>
+      <span class="meta">Composants: App.jsx + AgentAnalysis.jsx</span>
+      <div class="cols">
+        <div class="panel">
+          <h3>Responsabilites</h3>
+          <ul>
+            <li>Dashboard KPI en temps reel</li>
+            <li>Filtres business et tendances</li>
+            <li>Execution multi-agents d'analyse</li>
+            <li>Recommandations business/marketing</li>
+          </ul>
+        </div>
+        <div class="panel">
+          <h3>APIs</h3>
+          <ul>
+            <li><code>GET /api/kpis</code></li>
+            <li><code>WS /ws/kpis</code></li>
+            <li><code>GET /api/smart-recommendations/last</code></li>
+            <li><code>POST /api/smart-recommendations</code></li>
+            <li><code>GET /api/agent-analysis/last</code></li>
+            <li><code>POST /api/agent-analysis</code></li>
+          </ul>
+        </div>
+        <div class="panel">
+          <h3>Agents impliques</h3>
+          <ul>
+            <li>KPI Analyst</li>
+            <li>Customer Profiler</li>
+            <li>Market Researcher</li>
+            <li>Business and Marketing Agent</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section class="card" id="axis2">
+      <h2>3) Multi Agent: Axis 2 Chat</h2>
+      <span class="meta">Composants: Axis2ChatTab.jsx + axis2Api.js</span>
+      <div class="cols">
+        <div class="panel">
+          <h3>Responsabilites</h3>
+          <ul>
+            <li>Chat decisionnel multilingue</li>
+            <li>Gestion des sessions et historique</li>
+            <li>Activation RAG conditionnelle</li>
+            <li>Affichage des sources RAG</li>
+          </ul>
+        </div>
+        <div class="panel">
+          <h3>APIs</h3>
+          <ul>
+            <li><code>POST /chat</code></li>
+            <li><code>GET /sessions/{user_id}</code></li>
+            <li><code>GET /sessions/{user_id}/{session_id}/messages</code></li>
+          </ul>
+        </div>
+        <div class="panel">
+          <h3>Coordination interne</h3>
+          <ul>
+            <li>Router -> Decision route</li>
+            <li>RAG (si requis) -> grounding</li>
+            <li>Generation finale -> reponse + actions</li>
+            <li>Persistance session/profil</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section class="card" id="coordination">
+      <h2>4) Graphes de coordination des agents IA</h2>
+      <span class="meta">Focus exclusif sur les 2 multi agents demandes</span>
+
+      <div class="graph-grid">
+        <article class="graph-card">
+          <h3>Graphe A - Pipeline global (2 parcours)</h3>
+          <svg class="chart-svg" viewBox="0 0 840 290" role="img" aria-label="Pipeline 2 parcours">
+            <defs>
+              <marker id="arr2" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                <path d="M 0 0 L 10 5 L 0 10 z" fill="#8fd5ff" />
+              </marker>
+            </defs>
+
+            <rect x="18" y="22" width="140" height="44" rx="8" fill="#1b2b52" stroke="#4b71b6" />
+            <text x="88" y="49" fill="#d8e7ff" font-size="12" text-anchor="middle">User Request</text>
+
+            <rect x="190" y="22" width="170" height="44" rx="8" fill="#1a3450" stroke="#4e8db6" />
+            <text x="275" y="49" fill="#d8f0ff" font-size="12" text-anchor="middle">Sa3ed Front Router</text>
+
+            <line x1="158" y1="44" x2="190" y2="44" stroke="#8fd5ff" stroke-width="2" marker-end="url(#arr2)" />
+
+            <rect x="90" y="120" width="260" height="46" rx="8" fill="#1f3557" stroke="#5886c5" />
+            <text x="220" y="147" fill="#deebff" font-size="12" text-anchor="middle">Parcours 1: Dashboard/Analyse</text>
+
+            <rect x="470" y="120" width="260" height="46" rx="8" fill="#27345a" stroke="#6f82ca" />
+            <text x="600" y="147" fill="#e6e9ff" font-size="12" text-anchor="middle">Parcours 2: Axis 2 Chat</text>
+
+            <line x1="275" y1="66" x2="220" y2="120" stroke="#8fd5ff" stroke-width="1.9" marker-end="url(#arr2)" />
+            <line x1="275" y1="66" x2="600" y2="120" stroke="#8fd5ff" stroke-width="1.9" marker-end="url(#arr2)" />
+
+            <rect x="245" y="220" width="350" height="46" rx="8" fill="#133b3a" stroke="#39a89f" />
+            <text x="420" y="247" fill="#cdf9ef" font-size="12" text-anchor="middle">Unified UI Feedback + Business Actions</text>
+
+            <line x1="220" y1="166" x2="340" y2="220" stroke="#66d9c8" stroke-width="1.8" marker-end="url(#arr2)" />
+            <line x1="600" y1="166" x2="500" y2="220" stroke="#66d9c8" stroke-width="1.8" marker-end="url(#arr2)" />
+          </svg>
+          <p class="graph-note">Deux branches d'execution seulement: Dashboard/Analyse et Axis 2 Chat.</p>
+        </article>
+
+        <article class="graph-card">
+          <h3>Graphe B - Coordination des agents par parcours</h3>
+          <svg class="chart-svg" viewBox="0 0 840 290" role="img" aria-label="Coordination agents par parcours">
+            <defs>
+              <marker id="arr3" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                <path d="M 0 0 L 10 5 L 0 10 z" fill="#90d8ff" />
+              </marker>
+            </defs>
+
+            <rect x="20" y="20" width="380" height="250" rx="12" fill="#0d1a33" stroke="#36538b" />
+            <text x="210" y="42" fill="#bfe2ff" font-size="13" text-anchor="middle">Dashboard/Analyse Multi-Agent</text>
+
+            <rect x="42" y="66" width="152" height="34" rx="7" fill="#1a3553" stroke="#4a88b8" />
+            <text x="118" y="88" fill="#d7f2ff" font-size="11" text-anchor="middle">KPI Analyst</text>
+
+            <rect x="224" y="66" width="152" height="34" rx="7" fill="#1f3557" stroke="#5886c5" />
+            <text x="300" y="88" fill="#deebff" font-size="11" text-anchor="middle">Customer Profiler</text>
+
+            <rect x="42" y="132" width="152" height="34" rx="7" fill="#25365d" stroke="#6b82cb" />
+            <text x="118" y="154" fill="#e7ecff" font-size="11" text-anchor="middle">Market Researcher</text>
+
+            <rect x="224" y="132" width="152" height="34" rx="7" fill="#2c3658" stroke="#8290d6" />
+            <text x="300" y="154" fill="#eef1ff" font-size="11" text-anchor="middle">Business/Marketing</text>
+
+            <rect x="104" y="202" width="208" height="40" rx="8" fill="#153d3c" stroke="#39a89f" />
+            <text x="208" y="226" fill="#cdf9ef" font-size="11" text-anchor="middle">Synthesis + Recommendations</text>
+
+            <line x1="118" y1="100" x2="170" y2="132" stroke="#90d8ff" stroke-width="1.6" marker-end="url(#arr3)" />
+            <line x1="300" y1="100" x2="246" y2="132" stroke="#90d8ff" stroke-width="1.6" marker-end="url(#arr3)" />
+            <line x1="118" y1="166" x2="164" y2="202" stroke="#6fdcc8" stroke-width="1.6" marker-end="url(#arr3)" />
+            <line x1="300" y1="166" x2="252" y2="202" stroke="#6fdcc8" stroke-width="1.6" marker-end="url(#arr3)" />
+
+            <rect x="440" y="20" width="380" height="250" rx="12" fill="#101a36" stroke="#3d5693" />
+            <text x="630" y="42" fill="#c8e3ff" font-size="13" text-anchor="middle">Axis 2 Chat Multi-Agent</text>
+
+            <rect x="462" y="72" width="160" height="34" rx="7" fill="#1a3652" stroke="#4b88b7" />
+            <text x="542" y="94" fill="#d8f1ff" font-size="11" text-anchor="middle">Router</text>
+
+            <rect x="652" y="72" width="146" height="34" rx="7" fill="#21365a" stroke="#6285c8" />
+            <text x="725" y="94" fill="#e1ecff" font-size="11" text-anchor="middle">RAG (conditional)</text>
+
+            <rect x="462" y="140" width="336" height="36" rx="7" fill="#2a3558" stroke="#7a8fd5" />
+            <text x="630" y="162" fill="#ecefff" font-size="11" text-anchor="middle">Single Generation Agent</text>
+
+            <rect x="462" y="202" width="336" height="40" rx="8" fill="#15403a" stroke="#39a89f" />
+            <text x="630" y="226" fill="#d2fbef" font-size="11" text-anchor="middle">Response + Sources + Session Memory</text>
+
+            <line x1="622" y1="89" x2="652" y2="89" stroke="#90d8ff" stroke-width="1.6" marker-end="url(#arr3)" />
+            <line x1="725" y1="106" x2="700" y2="140" stroke="#90d8ff" stroke-width="1.6" marker-end="url(#arr3)" />
+            <line x1="542" y1="106" x2="560" y2="140" stroke="#90d8ff" stroke-width="1.6" marker-end="url(#arr3)" />
+            <line x1="630" y1="176" x2="630" y2="202" stroke="#6fdcc8" stroke-width="1.6" marker-end="url(#arr3)" />
+          </svg>
+          <p class="graph-note">Comparaison directe des mecanismes de coordination entre les deux multi agents.</p>
+        </article>
+      </div>
+    </section>
+
+    <p class="foot">
+      <span class="ok">OK:</span> Document limite a deux multi agents uniquement.
+      Retour en haut: <a href="#top" style="color:#9ad8ff;">Top</a>
+    </p>
+  </div>
+</body>
+</html>
